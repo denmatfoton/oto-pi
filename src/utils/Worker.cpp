@@ -2,7 +2,7 @@
 
 using namespace std;
 
-Worker::Worker() : m_thread(LoopFunc)
+Worker::Worker() : m_thread([this]{ LoopFunc(); })
 {
 }
 
