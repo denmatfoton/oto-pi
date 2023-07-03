@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <functional>
 #include <list>
@@ -39,7 +40,7 @@ class I2cTransaction
 public:
     bool AddCommand(I2cCommand&& command)
     {
-        if (m_commandsCount < std::size(m_commands))
+        if (m_commandsCount < static_cast<int>(std::size(m_commands)))
         {
             m_commands[m_commandsCount].emplace(std::move(command));
             ++m_commandsCount;
@@ -79,7 +80,7 @@ private:
 class I2cAccessor
 {
 public:
-    I2cAccessor() : m_tasks(Task::Compare) {}
+    I2cAccessor() {}
     ~I2cAccessor();
 
     int Init(const char* i2cFileName);
@@ -100,14 +101,15 @@ private:
     {
         TimePoint time;
         std::list<I2cTransaction>::iterator itTransaction;
+    };
 
-        static bool Compare(const Task& t1, const Task& t2)
-        {
+    struct CompareTasks {
+        bool operator()(const Task& t1, const Task& t2) {
             return t1.time > t2.time;
         }
     };
 
-    std::priority_queue<Task, std::vector<Task>, decltype(Task::Compare)> m_tasks;
+    std::priority_queue<Task, std::vector<Task>, CompareTasks> m_tasks{CompareTasks()};
     std::list<I2cTransaction> m_transactions;
 
     std::atomic_bool m_quit = false;
