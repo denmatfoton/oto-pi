@@ -79,7 +79,7 @@ private:
 class I2cAccessor
 {
 public:
-    I2cAccessor() {}
+    I2cAccessor() : m_tasks(Task::Compare) {}
     ~I2cAccessor();
 
     int Init(const char* i2cFileName);

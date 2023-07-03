@@ -11,7 +11,6 @@ set(OTO_SRCS
 set(MOTOR_SRCS
 	run_motor.cpp
 	hardware/MotorControl.cpp
-	utils/Worker.cpp
 )
 
 set(COMMON_LIBS pthread i2c pigpio rt)
