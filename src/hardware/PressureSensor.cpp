@@ -73,7 +73,7 @@ float PressureSensor::ReadPressurePsi()
 
 void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
 {
-    transaction.AddCommand([] (int i2cHandle, std::chrono::duration& delayNextCommand) {
+    transaction.AddCommand([] (int i2cHandle, std::chrono::milliseconds& delayNextCommand) {
         static constexpr char requestMeasurementCmd[] = {0xAA, 0, 0};
         int bytesWritten = write(i2cHandle, requestMeasurementCmd, sizeof(requestMeasurementCmd));
         if (bytesWritten != sizeof(requestMeasurementCmd))
@@ -85,7 +85,7 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         return I2cStatus::Next;
     });
 
-    transaction.AddCommand([] (int i2cHandle, std::chrono::duration& delayNextCommand) {
+    transaction.AddCommand([] (int i2cHandle, std::chrono::milliseconds& delayNextCommand) {
         int status = i2c_smbus_read_byte(i2cHandle);
         if (status < 0)
         {
@@ -104,7 +104,7 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         }
     });
 
-    transaction.AddCommand([this] (int i2cHandle, std::chrono::duration& delayNextCommand) {
+    transaction.AddCommand([this] (int i2cHandle, std::chrono::milliseconds& delayNextCommand) {
         char readBuff[4];
         int bytesRead = read(i2cHandle, readBuff, sizeof(readBuff));
         if (bytesRead != sizeof(readBuff))

@@ -109,7 +109,7 @@ TimePoint I2cTransaction::RunCommand()
         return c_errorTime;
     }
 
-    std::chrono::duration delayNextCommand = 0ms;
+    std::chrono::milliseconds delayNextCommand = 0ms;
     I2cStatus status = m_commands[m_curCommand]->operator(m_i2cHandle, delayNextCommand);
     
     switch (status)

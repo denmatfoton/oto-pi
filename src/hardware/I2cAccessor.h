@@ -25,7 +25,7 @@ enum class I2cStatus : int
 /// @brief 
 /// @param int: handle to I2C file.
 /// @param std::chrono::duration&: delay next command for duration.
-using I2cCommand = std::function<I2cStatus(int, std::chrono::duration&)>;
+using I2cCommand = std::function<I2cStatus(int, std::chrono::milliseconds&)>;
 using TransactionCompletion = std::function<void(I2cStatus)>;
 
 class I2cTransaction
@@ -54,7 +54,7 @@ public:
         m_completionCallback = std::move(callback);
     }
 
-    void MakeRecursive(std::function<bool()>&& isRecursionCompleted, std::chrono::duration delayNextIteration)
+    void MakeRecursive(std::function<bool()>&& isRecursionCompleted, std::chrono::milliseconds delayNextIteration)
     {
         m_optIsRecursionCompleted.emplace(std::move(isRecursionCompleted));
         m_delayNextIteration = delayNextIteration;
@@ -74,7 +74,7 @@ private:
     int m_curCommand = 0;
     TransactionCompletion m_completionCallback;
     std::optional<std::function<bool()>> m_optIsRecursionCompleted;
-    std::chrono::duration m_delayNextIteration = {};
+    std::chrono::milliseconds m_delayNextIteration = {};
 };
 
 class I2cAccessor
