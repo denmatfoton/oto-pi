@@ -32,7 +32,7 @@ int main()
 #endif
 
     I2cAccessor i2cAccessor;
-    if (i2cAccessor.Init() != 0)
+    if (i2cAccessor.Init(i2cFileName) != 0)
     {
         cerr << "i2cAccessor.Init() failed" << endl;
         return -1;
@@ -48,7 +48,7 @@ int main()
 
     pressureSensor.ReadRawPressureAsync([&mutex, &cv, &rawPressure] (int rawValue) {
         {
-            unique_lock lk(mutex);
+            unique_lock lk2(mutex);
             rawPressure = rawValue;
         }
         cv.notify_one();
