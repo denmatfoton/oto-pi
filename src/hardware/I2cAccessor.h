@@ -36,6 +36,19 @@ class I2cTransaction
         m_i2cHandle(i2cHandle), m_deviceAddress(deviceAddress)
     {}
     I2cTransaction(const I2cTransaction&) = delete;
+    I2cTransaction(I2cTransaction&& other) : m_i2cHandle(other.m_i2cHandle),
+        m_deviceAddress(other.m_deviceAddress),
+        m_commandsCount(other.m_commandsCount),
+        m_completionCallback(std::move(other.m_completionCallback)),
+        m_optIsRecursionCompleted(std::move(other.m_optIsRecursionCompleted)),
+        m_delayNextIteration(other.m_delayNextIteration)
+    {
+        other.m_i2cHandle = -1;
+        for (int i = 0; i < m_commandsCount; ++i)
+        {
+            m_commands[i] = std::move(other.m_commands[i]);
+        }
+    }
 
 public:
     bool AddCommand(I2cCommand&& command)
