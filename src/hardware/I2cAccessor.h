@@ -43,7 +43,6 @@ class I2cTransaction
         m_optIsRecursionCompleted(std::move(other.m_optIsRecursionCompleted)),
         m_delayNextIteration(other.m_delayNextIteration)
     {
-        other.m_i2cHandle = -1;
         for (int i = 0; i < m_commandsCount; ++i)
         {
             m_commands[i] = std::move(other.m_commands[i]);
