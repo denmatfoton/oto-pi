@@ -63,7 +63,7 @@ public:
         return false;
     }
 
-    std::future<I2cStatus> GetFuture() { m_completionPromise.get_future(); }
+    std::future<I2cStatus> GetFuture() { return m_completionPromise.get_future(); }
 
     void MakeRecursive(std::function<bool()>&& isRecursionCompleted, std::chrono::milliseconds delayNextIteration)
     {

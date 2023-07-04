@@ -80,7 +80,7 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         if (bytesWritten != sizeof(requestMeasurementCmd))
         {
             cerr << "ReadRawPressure: request measurement failed. bytesWritten: " << bytesWritten << endl;
-            return I2cStatus::Failed;
+            return I2cStatus::Failure;
         }
         delayNextCommand = 3ms;
         return I2cStatus::Next;
@@ -91,7 +91,7 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         if (status < 0)
         {
             cerr << "ReadRawPressure: read status failed. status: " << status << endl;
-            return I2cStatus::Failed;
+            return I2cStatus::Failure;
         }
         
         if ((status & c_busyFlag) == 0 || (status == 0xFF))
@@ -111,14 +111,14 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         if (bytesRead != sizeof(readBuff))
         {
             cerr << "ReadRawPressure: read measurement failed. bytesRead: " << bytesRead << endl;
-            return I2cStatus::Failed;
+            return I2cStatus::Failure;
         }
 
         int status = readBuff[0];
         if ((status & c_integrityFlag) || (status & c_mathSatFlag))
         {
             cerr << "ReadRawPressure: read measurement failed. status: " << std::hex << status << std::dec << endl;
-            return I2cStatus::Failed;
+            return I2cStatus::Failure;
         }
 
         int reading = 0;
