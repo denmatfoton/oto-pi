@@ -25,7 +25,7 @@ public:
     int ReadRawPressure();
 #endif
 
-    int ReadRawPressureAsync(std::function<void(int)> callback);
+    void ReadRawPressureAsync(std::function<void(int)> callback);
     void NotifyWhen(std::function<bool(int)> isExpectedValue,
         std::function<void(int)> callback);
 

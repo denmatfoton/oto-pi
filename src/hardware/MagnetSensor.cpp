@@ -45,16 +45,16 @@ void MagnetSensor::ReadConfig()
         return;
     }
 
-    ConfigReg confReg { static_cast<__u8>(wConf & 0xFF), static_cast<__u8>(wConf >> 8) };
+    ConfigReg confReg { wConf };
     
-    cout << "WD: " << confReg.wd << endl;
-    cout << "FTH: " << confReg.fth << endl;
-    cout << "SF: " << confReg.sf << endl;
+    cout << "WD: " << confReg.fields.wd << endl;
+    cout << "FTH: " << confReg.fields.fth << endl;
+    cout << "SF: " << confReg.fields.sf << endl;
 
-    cout << "PWMF: " << confReg.pwmf << endl;
-    cout << "OUTS: " << confReg.outs << endl;
-    cout << "HYST: " << confReg.hyst << endl;
-    cout << "PM: " << confReg.pm << endl << endl;
+    cout << "PWMF: " << confReg.fields.pwmf << endl;
+    cout << "OUTS: " << confReg.fields.outs << endl;
+    cout << "HYST: " << confReg.fields.hyst << endl;
+    cout << "PM: " << confReg.fields.pm << endl << endl;
 }
 
 void MagnetSensor::ReadStatus()
@@ -74,9 +74,9 @@ void MagnetSensor::ReadStatus()
 
     StatusReg statusReg { static_cast<__u8>(b) };
 
-    cout << "Magnet high: " << statusReg.magnet_high << endl;
-    cout << "Magnet low: " << statusReg.magnet_low << endl;
-    cout << "Magnet detected: " << statusReg.magnet_detected << endl;
+    cout << "Magnet high: " << statusReg.fields.magnet_high << endl;
+    cout << "Magnet low: " << statusReg.fields.magnet_low << endl;
+    cout << "Magnet detected: " << statusReg.fields.magnet_detected << endl;
 
     b = i2c_smbus_read_byte_data(m_i2cHandle, 0x1A);
     if (b < 0)

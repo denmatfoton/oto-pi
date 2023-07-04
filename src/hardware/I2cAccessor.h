@@ -36,9 +36,12 @@ class I2cTransaction
         m_i2cHandle(i2cHandle), m_deviceAddress(deviceAddress)
     {}
     I2cTransaction(const I2cTransaction&) = delete;
+
+public:
     I2cTransaction(I2cTransaction&& other) : m_i2cHandle(other.m_i2cHandle),
         m_deviceAddress(other.m_deviceAddress),
         m_commandsCount(other.m_commandsCount),
+        m_curCommand(other.m_curCommand),
         m_completionCallback(std::move(other.m_completionCallback)),
         m_optIsRecursionCompleted(std::move(other.m_optIsRecursionCompleted)),
         m_delayNextIteration(other.m_delayNextIteration)
@@ -49,7 +52,6 @@ class I2cTransaction
         }
     }
 
-public:
     bool AddCommand(I2cCommand&& command)
     {
         if (m_commandsCount < static_cast<int>(std::size(m_commands)))
@@ -108,16 +110,20 @@ private:
     void LoopFunc();
 
     int m_i2cHandle = -1;
+    using TransactionIterator = std::list<I2cTransaction>::iterator;
 
     struct Task
     {
-        TimePoint time;
-        std::list<I2cTransaction>::iterator itTransaction;
+        Task(TimePoint start, TransactionIterator it) :
+            startTime(start), itTransaction(it) {}
+
+        TimePoint startTime;
+        TransactionIterator itTransaction;
     };
 
     struct CompareTasks {
         bool operator()(const Task& t1, const Task& t2) {
-            return t1.time > t2.time;
+            return t1.startTime > t2.startTime;
         }
     };
 

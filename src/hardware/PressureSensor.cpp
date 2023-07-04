@@ -104,7 +104,7 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         }
     });
 
-    transaction.AddCommand([this] (int i2cHandle, std::chrono::milliseconds& delayNextCommand) {
+    transaction.AddCommand([this] (int i2cHandle, std::chrono::milliseconds& /*delayNextCommand*/) {
         char readBuff[4];
         int bytesRead = read(i2cHandle, readBuff, sizeof(readBuff));
         if (bytesRead != sizeof(readBuff))
@@ -127,7 +127,7 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
             reading |= readBuff[i];
         }
 
-        m_lastRawValue = reading;
+        m_lastRawValue.store(reading);
 
         return I2cStatus::Completed;
     });
@@ -137,7 +137,7 @@ void PressureSensor::ReadRawPressureAsync(function<void(int)> callback)
 {
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
     FillI2cTransaction(transaction);
-    transaction.SetCompletionCallback([this] (I2cStatus status) {
-        callback(status == I2cStatus::Completed ? m_lastRawValue : -1);
+    transaction.SetCompletionCallback([this, callback = move(callback)] (I2cStatus status) {
+        callback(status == I2cStatus::Completed ? m_lastRawValue.load() : -1);
     });
 }

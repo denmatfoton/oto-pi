@@ -12,13 +12,15 @@ set(COMMON_CXX_FLAGS
 -Werror
 -Wextra
 -Winit-self
+-Wno-psabi
 -Wold-style-cast
 -Woverloaded-virtual
 -Wshadow
 -Wsign-promo
 -Wunreachable-code
-#-pedantic
--std=gnu++17)
+-pedantic
+-std=gnu++17
+)
 
 ADD_COMPILE_OPTIONS(
     "$<$<COMPILE_LANGUAGE:CXX>:${COMMON_CXX_FLAGS}>"

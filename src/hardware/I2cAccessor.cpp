@@ -65,16 +65,16 @@ void I2cAccessor::LoopFunc()
         else
         {
             auto curTime = chrono::steady_clock::now();
-            if (curTime < m_tasks.top().time)
+            if (curTime < m_tasks.top().startTime)
             {
-                m_cv.wait_until(lk, m_tasks.top().time)
+                m_cv.wait_until(lk, m_tasks.top().startTime);
             }
         }
         
         if (m_quit) break;
         if (m_tasks.empty()) continue;
         auto curTime = chrono::steady_clock::now();
-        if (curTime < m_tasks.top().time) continue;
+        if (curTime < m_tasks.top().startTime) continue;
 
         auto curTask = move(m_tasks.top());
         m_tasks.pop();
@@ -85,7 +85,7 @@ void I2cAccessor::LoopFunc()
 
         lk.lock();
 
-        if (curTask.itTransaction->Completed())
+        if (curTask.itTransaction->IsCompleted())
         {
             m_transactions.erase(curTask.itTransaction);
         }
@@ -110,7 +110,7 @@ TimePoint I2cTransaction::RunCommand()
     }
 
     std::chrono::milliseconds delayNextCommand = 0ms;
-    I2cStatus status = m_commands[m_curCommand]->operator(m_i2cHandle, delayNextCommand);
+    I2cStatus status = (*m_commands[m_curCommand])(m_i2cHandle, delayNextCommand);
     
     switch (status)
     {
@@ -119,9 +119,10 @@ TimePoint I2cTransaction::RunCommand()
         {
             break;
         }
+        [[fallthrough]];
     case I2cStatus::Completed:
         if (m_optIsRecursionCompleted.has_value() &&
-            !m_optIsRecursionCompleted->operator())
+            !(*m_optIsRecursionCompleted)())
         {
             m_curCommand = 0;
             delayNextCommand = m_delayNextIteration;
