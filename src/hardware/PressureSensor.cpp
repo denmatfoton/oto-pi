@@ -136,7 +136,7 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
 
 std::future<int> PressureSensor::ReadRawPressureAsync()
 {
-    unique_ptr<promise<int>> spPromise = new promise<int>;
+    shared_ptr<promise<int>> spPromise = make_shared<promise<int>>;
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
     FillI2cTransaction(transaction);
 
