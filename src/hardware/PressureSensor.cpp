@@ -134,19 +134,11 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
     });
 }
 
-std::future<int> PressureSensor::ReadRawPressureAsync()
+std::future<I2cStatus> PressureSensor::ReadRawPressureAsync()
 {
-    shared_ptr<promise<int>> spPromise = make_shared<promise<int>>;
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
     FillI2cTransaction(transaction);
-
-    future<int> measurementFuture = spPromise->get_future();
-    
-    transaction.SetCompletionCallback(move([this, spPromise = move(spPromise)] (I2cStatus status) mutable {
-        int value = status == I2cStatus::Completed ? m_lastRawValue.load() : -1;
-        spPromise->set_value(value);
-    }));
-
+    future<I2cStatus> measurementFuture = transaction.GetFuture();
     m_i2cAccessor.PushTransaction(move(transaction));
 
     return measurementFuture;

@@ -7,6 +7,8 @@
 class I2cAccessor;
 class I2cTransaction;
 
+enum class I2cStatus : int;
+
 class PressureSensor
 {
     static constexpr int c_sensorAddress = 0x18;
@@ -26,7 +28,7 @@ public:
     int ReadRawPressure();
 #endif
 
-    std::future<int> ReadRawPressureAsync();
+    std::future<I2cStatus> ReadRawPressureAsync();
     void NotifyWhen(std::function<bool(int)> isExpectedValue,
         std::function<void(int)> callback);
 
@@ -35,6 +37,8 @@ public:
         return static_cast<float>((rawValue - c_outputMin) * (c_maxPsi - c_minPsi)) 
             / static_cast<float>(c_outputMax - c_outputMin) + static_cast<float>(c_minPsi);
     }
+
+    int GetLastRawPressure() { return m_lastRawValue.load(); }
 
 private:
     void FillI2cTransaction(I2cTransaction& transaction);

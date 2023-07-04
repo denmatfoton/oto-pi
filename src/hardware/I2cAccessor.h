@@ -4,6 +4,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <functional>
+#include <future>
 #include <list>
 #include <mutex>
 #include <queue>
@@ -15,18 +16,17 @@ using TimePoint = std::chrono::time_point<std::chrono::steady_clock>;
 
 enum class I2cStatus : int
 {
-    None,
+    Success,
+    Failure,
     Completed,
     Next,
     Repeat,
-    Failed,
 };
 
 /// @brief 
 /// @param int: handle to I2C file.
 /// @param std::chrono::duration&: delay next command for duration.
 using I2cCommand = std::function<I2cStatus(int, std::chrono::milliseconds&)>;
-using TransactionCompletion = std::function<void(I2cStatus)>;
 
 class I2cTransaction
 {
@@ -42,7 +42,7 @@ public:
         m_deviceAddress(other.m_deviceAddress),
         m_commandsCount(other.m_commandsCount),
         m_curCommand(other.m_curCommand),
-        m_completionCallback(std::move(other.m_completionCallback)),
+        m_completionPromise(std::move(other.m_completionPromise)),
         m_optIsRecursionCompleted(std::move(other.m_optIsRecursionCompleted)),
         m_delayNextIteration(other.m_delayNextIteration)
     {
@@ -63,10 +63,7 @@ public:
         return false;
     }
 
-    void SetCompletionCallback(TransactionCompletion&& callback)
-    {
-        m_completionCallback = std::move(callback);
-    }
+    std::future<I2cStatus> GetFuture() { m_completionPromise.get_future(); }
 
     void MakeRecursive(std::function<bool()>&& isRecursionCompleted, std::chrono::milliseconds delayNextIteration)
     {
@@ -86,7 +83,9 @@ private:
     std::optional<I2cCommand> m_commands[3];
     int m_commandsCount = 0;
     int m_curCommand = 0;
-    TransactionCompletion m_completionCallback;
+    std::promise<I2cStatus> m_completionPromise;
+
+    // For recursive transaction
     std::optional<std::function<bool()>> m_optIsRecursionCompleted;
     std::chrono::milliseconds m_delayNextIteration = {};
 };

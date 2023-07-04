@@ -40,17 +40,17 @@ int main()
 
     PressureSensor pressureSensor(i2cAccessor);
 
-    future<int> pressureFuture = pressureSensor.ReadRawPressureAsync();
+    future<I2cStatus> pressureFuture = pressureSensor.ReadRawPressureAsync();
 
     pressureFuture.wait();
-    int rawPressure = pressureFuture.get();
 
-    if (rawPressure < 0)
+    if (pressureFuture.get() != I2cStatus::Success)
     {
         cerr << "pressureSensor.ReadRawPressureAsync() failed" << endl;
         return -1;
     }
 
+    int rawPressure = pressureSensor.GetLastRawPressure();
     cout << "Raw pressure: " << rawPressure << endl;
     float pressurePsi = PressureSensor::ConvertToPsi(rawPressure);
     cout << "Pressure: " << pressurePsi << " Psi" << endl;

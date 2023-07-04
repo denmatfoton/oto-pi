@@ -105,7 +105,7 @@ TimePoint I2cTransaction::RunCommand()
 
     if (ioctl(m_i2cHandle, I2C_SLAVE, m_deviceAddress) < 0)
     {
-        Complete(I2cStatus::Failed);
+        Complete(I2cStatus::Failure);
         return c_errorTime;
     }
 
@@ -129,12 +129,12 @@ TimePoint I2cTransaction::RunCommand()
         }
         else
         {
-            Complete(I2cStatus::Completed);
+            Complete(I2cStatus::Success);
         }
         break;
     case I2cStatus::Repeat:
         break;
-    case I2cStatus::Failed:
+    case I2cStatus::Failure:
     default:
         Complete(status);
         return c_errorTime;
@@ -147,5 +147,5 @@ TimePoint I2cTransaction::RunCommand()
 void I2cTransaction::Complete(I2cStatus status)
 {
     m_curCommand = m_commandsCount;
-    m_completionCallback(status);
+    m_completionPromise.set_value(status);
 }
