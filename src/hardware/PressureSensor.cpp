@@ -141,8 +141,9 @@ std::future<int> PressureSensor::ReadRawPressureAsync()
 
     future<int> measurementFuture = measurementPromise.get_future();
     
-    transaction.SetCompletionCallback([this, measurementPromise = move(measurementPromise)] (I2cStatus status) {
-        measurementPromise.set_value(status == I2cStatus::Completed ? m_lastRawValue.load() : -1);
+    transaction.SetCompletionCallback([this, measurementPromise = move(measurementPromise)] (I2cStatus status) mutable {
+        int value = status == I2cStatus::Completed ? m_lastRawValue.load() : -1;
+        measurementPromise.set_value(value);
     });
 
     m_i2cAccessor.PushTransaction(move(transaction));
