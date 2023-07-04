@@ -9,6 +9,7 @@ extern "C" {
 #include <unistd.h>
 
 #include <iostream>
+#include <memory>
 
 using namespace std;
 
@@ -135,16 +136,16 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
 
 std::future<int> PressureSensor::ReadRawPressureAsync()
 {
-    promise<int> measurementPromise;
+    unique_ptr<promise<int>> spPromise = new promise<int>;
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
     FillI2cTransaction(transaction);
 
-    future<int> measurementFuture = measurementPromise.get_future();
+    future<int> measurementFuture = spPromise->get_future();
     
-    transaction.SetCompletionCallback([this, measurementPromise = move(measurementPromise)] (I2cStatus status) mutable {
+    transaction.SetCompletionCallback(move([this, spPromise = move(spPromise)] (I2cStatus status) mutable {
         int value = status == I2cStatus::Completed ? m_lastRawValue.load() : -1;
-        measurementPromise.set_value(value);
-    });
+        spPromise->set_value(value);
+    }));
 
     m_i2cAccessor.PushTransaction(move(transaction));
 
