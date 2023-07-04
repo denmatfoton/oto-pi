@@ -15,7 +15,11 @@ I2cAccessor::~I2cAccessor()
 {
     if (m_thread.has_value())
     {
-        m_quit = true;
+        cout << "Quit I2cAccessor thread" << endl;
+        {
+            unique_lock lk(m_mutex);
+            m_quit = true;
+        }
         m_cv.notify_one();
         m_thread->join();
     }
@@ -57,6 +61,7 @@ void I2cAccessor::LoopFunc()
     while (true)
     {
         unique_lock lk(m_mutex);
+	if (m_quit) break;
 
         if (m_tasks.empty())
         {
