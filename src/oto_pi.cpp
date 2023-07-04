@@ -40,21 +40,10 @@ int main()
 
     PressureSensor pressureSensor(i2cAccessor);
 
-    int rawPressure = -1;
-    mutex mutex;
-    condition_variable cv;
-    
-    unique_lock lk(mutex);
+    future<int> pressureFuture = pressureSensor.ReadRawPressureAsync();
 
-    pressureSensor.ReadRawPressureAsync([&mutex, &cv, &rawPressure] (int rawValue) {
-        {
-            unique_lock lk2(mutex);
-            rawPressure = rawValue;
-        }
-        cv.notify_one();
-    });
-
-    cv.wait(lk);
+    pressureFuture.wait();
+    int rawPressure = pressureFuture.get();
 
     if (rawPressure < 0)
     {
@@ -62,8 +51,9 @@ int main()
         return -1;
     }
 
+    cout << "Raw pressure: " << rawPressure << endl;
     float pressurePsi = PressureSensor::ConvertToPsi(rawPressure);
-    cout << "Pressure: " << pressurePsi << endl;
+    cout << "Pressure: " << pressurePsi << " Psi" << endl;
 
     return 0;
 }

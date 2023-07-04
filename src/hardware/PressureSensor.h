@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <functional>
+#include <future>
 
 class I2cAccessor;
 class I2cTransaction;
@@ -25,7 +26,7 @@ public:
     int ReadRawPressure();
 #endif
 
-    void ReadRawPressureAsync(std::function<void(int)> callback);
+    std::future<int> ReadRawPressureAsync();
     void NotifyWhen(std::function<bool(int)> isExpectedValue,
         std::function<void(int)> callback);
 
