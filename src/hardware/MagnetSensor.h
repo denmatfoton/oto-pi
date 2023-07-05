@@ -9,6 +9,8 @@
 class I2cAccessor;
 class I2cTransaction;
 
+enum class I2cStatus : int;
+
 union ConfigReg
 {
     int raw;

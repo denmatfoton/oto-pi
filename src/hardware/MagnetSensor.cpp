@@ -87,46 +87,14 @@ void MagnetSensor::ReadStatus()
     cout << "Automatic Gain Control: " << b << endl << endl;
 }
 
-float MagnetSensor::ReadAngle()
-{
-    if (ioctl(i2cHandle, I2C_SLAVE, c_sensorAddress) < 0)
-    {
-        cerr << "ReadAngle: ioctl failed" << endl;
-        return NAN;
-    }
-
-    int raw_angle = i2c_smbus_read_word_data(i2cHandle, 0x0C);
-    if (raw_angle < 0)
-    {
-        cerr << "ReadAngle: read raw_angle failed. status: " << raw_angle << endl;
-        return NAN;
-    }
-
-    raw_angle = SwapBytesWord(raw_angle);
-    cout << "Raw angle: " << raw_angle << endl;
-
-    int angle = i2c_smbus_read_word_data(i2cHandle, 0x0E);
-    if (angle < 0)
-    {
-        cerr << "ReadAngle: read angle failed. status: " << angle << endl;
-        return NAN;
-    }
-
-    angle = SwapBytesWord(angle);
-    cout << "Angle: " << angle << endl << endl;
-
-    float res = 0.f;
-    return res;
-}
-
 void MagnetSensor::FillI2cTransactionReadAngle(I2cTransaction& transaction)
 {
-    transaction.AddCommand([] (int i2cHandle, std::chrono::milliseconds& delayNextCommand) {
+    transaction.AddCommand([this] (int i2cHandle, std::chrono::milliseconds& /*delayNextCommand*/) {
         int angle = i2c_smbus_read_word_data(i2cHandle, 0x0E);
         if (angle < 0)
         {
             cerr << "ReadAngle: read angle failed. status: " << angle << endl;
-            return NAN;
+            return I2cStatus::Failure;
         }
 
         angle = SwapBytesWord(angle);
