@@ -39,21 +39,35 @@ int main()
     }
 
     PressureSensor pressureSensor(i2cAccessor);
+    MagnetSensor magnetSensor(i2cAccessor);
 
-    future<I2cStatus> pressureFuture = pressureSensor.ReadRawPressureAsync();
+    auto pressureFuture = pressureSensor.ReadPressureAsync();
+    auto angleFuture = magnetSensor.ReadAngleAsync();
+
+    angleFuture.wait();
+    if (pressureFuture.get() != I2cStatus::Success)
+    {
+        cerr << "pressureSensor.ReadPressureAsync() failed" << endl;
+    }
+    else
+    {
+        int angle = magnetSensor.GetLastRawAngle();
+        cout << "Angle: " << angle << endl;
+    }
 
     pressureFuture.wait();
 
     if (pressureFuture.get() != I2cStatus::Success)
     {
-        cerr << "pressureSensor.ReadRawPressureAsync() failed" << endl;
-        return -1;
+        cerr << "pressureSensor.ReadPressureAsync() failed" << endl;
     }
-
-    int rawPressure = pressureSensor.GetLastRawPressure();
-    cout << "Raw pressure: " << rawPressure << endl;
-    float pressurePsi = PressureSensor::ConvertToPsi(rawPressure);
-    cout << "Pressure: " << pressurePsi << " Psi" << endl;
+    else
+    {
+        int rawPressure = pressureSensor.GetLastRawPressure();
+        cout << "Raw pressure: " << rawPressure << endl;
+        float pressurePsi = PressureSensor::ConvertToPsi(rawPressure);
+        cout << "Pressure: " << pressurePsi << " Psi" << endl;
+    }
 
     return 0;
 }

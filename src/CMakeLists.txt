@@ -4,12 +4,15 @@ add_executable(run_motor)
 set(OTO_SRCS
 	oto_pi.cpp
 	hardware/I2cAccessor.cpp
-	hardware/PressureSensor.cpp
 	hardware/MagnetSensor.cpp
+	hardware/PressureSensor.cpp
 )
 
 set(MOTOR_SRCS
 	run_motor.cpp
+	hardware/I2cAccessor.cpp
+	hardware/MagnetSensor.cpp
+	hardware/PressureSensor.cpp
 	hardware/MotorControl.cpp
 )
 

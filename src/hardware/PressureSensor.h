@@ -28,9 +28,8 @@ public:
     int ReadRawPressure();
 #endif
 
-    std::future<I2cStatus> ReadRawPressureAsync();
-    void NotifyWhen(std::function<bool(int)> isExpectedValue,
-        std::function<void(int)> callback);
+    std::future<I2cStatus> ReadPressureAsync();
+    std::future<I2cStatus> NotifyWhen(std::function<bool(int)> isExpectedValue);
 
     static float ConvertToPsi(int rawValue)
     {

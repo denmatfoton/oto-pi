@@ -61,7 +61,7 @@ void I2cAccessor::LoopFunc()
     while (true)
     {
         unique_lock lk(m_mutex);
-	if (m_quit) break;
+        if (m_quit) break;
 
         if (m_tasks.empty())
         {

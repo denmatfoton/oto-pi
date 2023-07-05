@@ -2,23 +2,12 @@
 
 #include <cstdint>
 
-class MagnetSensor
-{
-    static constexpr int c_sensorAddress = 0x36;
+#include <atomic>
+#include <functional>
+#include <future>
 
-public:
-    MagnetSensor(int i2cHandle);
-
-    void Configure();
-
-    void ReadConfig();
-    void ReadStatus();
-    float ReadAngle();
-    
-private:
-    const int m_i2cHandle;
-    const int dummy = 9;
-};
+class I2cAccessor;
+class I2cTransaction;
 
 union ConfigReg
 {
@@ -46,4 +35,26 @@ union StatusReg
         uint32_t magnet_low : 1;
         uint32_t magnet_detected : 1;
     } fields;
+};
+
+class MagnetSensor
+{
+    static constexpr int c_sensorAddress = 0x36;
+
+public:
+    MagnetSensor(I2cAccessor& i2cAccessor) : m_i2cAccessor(i2cAccessor) {}
+
+    void ReadConfig();
+    void ReadStatus();
+
+    std::future<I2cStatus> ReadAngleAsync();
+    std::future<I2cStatus> NotifyWhenAngle(std::function<bool(int)> isExpectedValue);
+    
+    int GetLastRawAngle() { return m_lastRawAngle.load(); }
+
+private:
+    void FillI2cTransactionReadAngle(I2cTransaction& transaction);
+
+    I2cAccessor& m_i2cAccessor;
+    std::atomic_int32_t m_lastRawAngle = 0;
 };

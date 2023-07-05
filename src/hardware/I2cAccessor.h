@@ -105,6 +105,8 @@ public:
 
     void PushTransaction(I2cTransaction&& transaction);
 
+    int GetI2cHandle() { return m_i2cHandle; }
+
 private:
     void LoopFunc();
 
@@ -129,7 +131,7 @@ private:
     std::priority_queue<Task, std::vector<Task>, CompareTasks> m_tasks{CompareTasks()};
     std::list<I2cTransaction> m_transactions;
 
-    std::atomic_bool m_quit = false;
+    bool m_quit = false;
     std::mutex m_mutex;
     std::condition_variable m_cv;
     std::optional<std::thread> m_thread;

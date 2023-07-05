@@ -1,7 +1,7 @@
+#include "Timer.h"
+
 #include <signal.h>
 #include <cstring>
-
-#include "timer.h"
 
 Timer::Timer() : timer_id_(nullptr)
 {

@@ -134,7 +134,7 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
     });
 }
 
-std::future<I2cStatus> PressureSensor::ReadRawPressureAsync()
+std::future<I2cStatus> PressureSensor::ReadPressureAsync()
 {
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
     FillI2cTransaction(transaction);
