@@ -19,7 +19,7 @@ set(MOTOR_SRCS
 set(COMMON_LIBS pthread i2c pigpio rt)
 
 target_sources(oto_pi PRIVATE ${OTO_SRCS})
-target_include_directories(oto_pi PRIVATE hardware)
+target_include_directories(oto_pi PRIVATE hardware utils)
 target_link_libraries(oto_pi PRIVATE ${COMMON_LIBS})
 
 target_sources(run_motor PRIVATE ${MOTOR_SRCS})
