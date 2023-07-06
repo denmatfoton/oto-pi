@@ -45,9 +45,9 @@ int main()
     auto angleFuture = magnetSensor.ReadAngleAsync();
 
     angleFuture.wait();
-    if (pressureFuture.get() != I2cStatus::Success)
+    if (angleFuture.get() != I2cStatus::Success)
     {
-        cerr << "pressureSensor.ReadPressureAsync() failed" << endl;
+        cerr << "magnetSensor.ReadAngleAsync() failed" << endl;
     }
     else
     {

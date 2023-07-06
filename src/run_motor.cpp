@@ -1,3 +1,4 @@
+#include "I2cAccessor.h"
 #include "MotorControl.h"
 
 #include <iostream>
@@ -6,16 +7,32 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
-    if (argc < 5)
+    static constexpr const char i2cFileName[] = "/dev/i2c-1";
+
+    if (argc < 4)
     {
         cerr << "Incorrect number of arguments." << endl;
         return -1;
     }
 
-    MotorUnit motorUnit = argv[1][0] == 'n' ? MotorUnit::Nozzle : MotorUnit::Valve;
+    if (MotorControl::InitializeGpio() < 0)
+    {
+        cerr << "InitializeGpio failed" << endl;
+        return -1;
+    }
 
-    MotorDirection direction = MotorDirection::Close;
-    switch (argv[2][0])
+    I2cAccessor i2cAccessor;
+    if (i2cAccessor.Init(i2cFileName) != 0)
+    {
+        cerr << "i2cAccessor.Init() failed" << endl;
+        return -1;
+    }
+
+    Nozzle nozzle(i2cAccessor);
+    auto positionFuture = nozzle.FetchPosition();
+
+    MotorDirection direction = MotorDirection::Left;
+    switch (argv[1][0])
     {
         case 'c':
             direction = MotorDirection::Close;
@@ -33,6 +50,13 @@ int main(int argc, char *argv[])
             cerr << "Incorrect direction argument." << endl;
             return -1;
     }
+
+    int targetAngle = strtol(argv[2], nullptr, 10);
+    if (targetAngle < 0 || targetAngle >= MagnetSensor::c_angleRange)
+    {
+        cerr << "Incorrect targetAngle argument." << endl;
+        return -1;
+    }
     
     int duty = strtol(argv[3], nullptr, 10);
     if (duty < 0 || duty > 100)
@@ -41,22 +65,38 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    int durationMs = strtol(argv[4], nullptr, 10);
-    if (durationMs < 0)
+    cout << "Current position: ";
+    positionFuture.wait();
+    if (positionFuture.get() != I2cStatus::Success)
     {
-        cerr << "Incorrect durationMs argument." << endl;
+        cerr << "Fetch position failed" << endl;
         return -1;
     }
 
-    int status = MotorControl::InitializeGpio();
-    if (status != 0)
+    cout << nozzle.GetPosition() << endl;
+
+    auto rotateFuture = nozzle.RotateTo(direction, targetAngle, duty);
+
+    rotateFuture.wait();
+    if (rotateFuture.get() != I2cStatus::Success)
     {
-        cerr << "InitializeGpio failed with: " << status << endl;
+        cerr << "RotateTo failed" << endl;
         return -1;
     }
 
-    MotorControl motor(motorUnit);
-    motor.RunMotor(direction, duty, durationMs);
+    cout << "Rotation finished at position: " << nozzle.GetPosition() << endl;
+
+    positionFuture = nozzle.FetchPosition();
+
+    cout << "Refresh position: ";
+    positionFuture.wait();
+    if (positionFuture.get() != I2cStatus::Success)
+    {
+        cerr << "Fetch position failed" << endl;
+        return -1;
+    }
+
+    cout << nozzle.GetPosition() << endl;
 
     return 0;
 }

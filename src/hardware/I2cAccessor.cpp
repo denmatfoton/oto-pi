@@ -151,6 +151,15 @@ TimePoint I2cTransaction::RunCommand()
 
 void I2cTransaction::Complete(I2cStatus status)
 {
+    cout << "Complete transaction" << endl;
     m_curCommand = m_commandsCount;
+    if (m_optCompletionAction.has_value())
+    {
+        (*m_optCompletionAction)(status);
+    }
+    else
+    {
+        cout << "m_optCompletionAction does not have value" << endl;
+    }
     m_completionPromise.set_value(status);
 }

@@ -116,7 +116,8 @@ std::future<I2cStatus> MagnetSensor::ReadAngleAsync()
     return measurementFuture;
 }
 
-std::future<I2cStatus> MagnetSensor::NotifyWhenAngle(std::function<bool(int)> isExpectedValue)
+std::future<I2cStatus> MagnetSensor::NotifyWhenAngle(std::function<bool(int)>&& isExpectedValue,
+        std::function<void(I2cStatus)>&& completionAction)
 {
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
     
@@ -124,7 +125,9 @@ std::future<I2cStatus> MagnetSensor::NotifyWhenAngle(std::function<bool(int)> is
 
     transaction.MakeRecursive([this, checkAngle = move(isExpectedValue)] {
         return checkAngle(GetLastRawAngle());
-    }, 5ms);
+    }, 2ms);
+
+    transaction.SetCompletionAction(move(completionAction));
 
     future<I2cStatus> measurementFuture = transaction.GetFuture();
     m_i2cAccessor.PushTransaction(move(transaction));

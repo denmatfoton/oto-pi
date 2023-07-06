@@ -43,6 +43,7 @@ public:
         m_commandsCount(other.m_commandsCount),
         m_curCommand(other.m_curCommand),
         m_completionPromise(std::move(other.m_completionPromise)),
+        m_optCompletionAction(std::move(other.m_optCompletionAction)),
         m_optIsRecursionCompleted(std::move(other.m_optIsRecursionCompleted)),
         m_delayNextIteration(other.m_delayNextIteration)
     {
@@ -71,6 +72,11 @@ public:
         m_delayNextIteration = delayNextIteration;
     }
 
+    void SetCompletionAction(std::function<void(I2cStatus)>&& completionAction)
+    {
+        m_optCompletionAction.emplace(std::move(completionAction));
+    }
+
     bool IsValid() const { return m_i2cHandle >= 0; }
     bool IsCompleted() const { return m_curCommand == m_commandsCount; }
 
@@ -84,6 +90,8 @@ private:
     int m_commandsCount = 0;
     int m_curCommand = 0;
     std::promise<I2cStatus> m_completionPromise;
+
+    std::optional<std::function<void(I2cStatus)>> m_optCompletionAction;
 
     // For recursive transaction
     std::optional<std::function<bool()>> m_optIsRecursionCompleted;

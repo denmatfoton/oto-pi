@@ -3,20 +3,23 @@ add_executable(run_motor)
 
 set(OTO_SRCS
 	oto_pi.cpp
-	hardware/I2cAccessor.cpp
-	hardware/MagnetSensor.cpp
-	hardware/PressureSensor.cpp
 )
 
 set(MOTOR_SRCS
 	run_motor.cpp
+)
+
+set(HARDWARE_SRCS
 	hardware/I2cAccessor.cpp
 	hardware/MagnetSensor.cpp
 	hardware/PressureSensor.cpp
 	hardware/MotorControl.cpp
 )
 
-set(COMMON_LIBS pthread i2c pigpio rt)
+add_library(hardware STATIC ${HARDWARE_SRCS})
+target_include_directories(hardware PRIVATE hardware utils)
+
+set(COMMON_LIBS pthread i2c pigpio rt hardware)
 
 target_sources(oto_pi PRIVATE ${OTO_SRCS})
 target_include_directories(oto_pi PRIVATE hardware utils)

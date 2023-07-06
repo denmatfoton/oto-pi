@@ -44,13 +44,16 @@ class MagnetSensor
     static constexpr int c_sensorAddress = 0x36;
 
 public:
+    static constexpr int c_angleRange = 0x4024;
+
     MagnetSensor(I2cAccessor& i2cAccessor) : m_i2cAccessor(i2cAccessor) {}
 
     void ReadConfig();
     void ReadStatus();
 
     std::future<I2cStatus> ReadAngleAsync();
-    std::future<I2cStatus> NotifyWhenAngle(std::function<bool(int)> isExpectedValue);
+    std::future<I2cStatus> NotifyWhenAngle(std::function<bool(int)>&& isExpectedValue,
+        std::function<void(I2cStatus)>&& completionAction);
     
     int GetLastRawAngle() { return m_lastRawAngle.load(); }
 

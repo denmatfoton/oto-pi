@@ -8,19 +8,12 @@
 
 using namespace std;
 
-MotorControl::MotorControl(MotorUnit motorUnit)
+MotorControl::MotorControl(int pwmPin, int drainPin) :
+    m_pwmPin(pwmPin), m_drainPin(drainPin)
 {
-    switch (motorUnit)
+    if (InitializeGpio() < 0)
     {
-    case MotorUnit::Nozzle:
-        m_pwmPin = c_pwmPinNozzle;
-        m_drainPin = c_drainPinNozzle;
-        break;
-    
-    case MotorUnit::Valve:
-        m_pwmPin = c_pwmPinValve;
-        m_drainPin = c_drainPinValve;
-        break;
+        cerr << "InitializeGpio failed" << endl;
     }
 
     gpioSetMode(m_pwmPin, PI_OUTPUT);
@@ -31,17 +24,22 @@ MotorControl::MotorControl(MotorUnit motorUnit)
 
 int MotorControl::InitializeGpio()
 {
-    if (gpioCfgClock(5, 1, 0)) return -1;
-    if (gpioInitialise() < 0) return -2;
+    static bool gpioInitialized = false;
+    if (!gpioInitialized)
+    {
+        if (gpioCfgClock(5, 1, 0)) return -1;
+        if (gpioInitialise() < 0) return -2;
+        gpioInitialized = true;
+    }
 
     return 0;
 }
 
-void MotorControl::RunMotor(MotorDirection direction, int duty, int durationMs)
+void MotorControl::Run(MotorDirection direction, int dutyPercent)
 {
     int drainValue = static_cast<int>(direction);
-    duty += (100 - duty * 2) * drainValue; // Invert duty in case drainValue == 1.
-    duty *= 10000;
+    dutyPercent += (100 - dutyPercent * 2) * drainValue; // Invert duty in case drainValue == 1.
+    int duty = dutyPercent * 10000;
 
     int status = gpioHardwarePWM(m_pwmPin, c_pwmFreq, duty);
     if (status != 0)
@@ -51,14 +49,12 @@ void MotorControl::RunMotor(MotorDirection direction, int duty, int durationMs)
     }
 
     gpioWrite(m_drainPin, drainValue);
-
-    this_thread::sleep_for(std::chrono::milliseconds(durationMs));
-
-    StopMotor();
 }
 
-void MotorControl::StopMotor()
+void MotorControl::Stop()
 {
+    cout << "Stopping motor" << endl;
+
     int status = gpioHardwarePWM(m_pwmPin, 0, 0);
     if (status != 0)
     {
@@ -68,4 +64,30 @@ void MotorControl::StopMotor()
 
     gpioWrite(m_pwmPin, 0);
     gpioWrite(m_drainPin, 0);
+}
+
+std::future<I2cStatus> Nozzle::RotateTo(MotorDirection direction, int targetAngle, int dutyPercent)
+{
+    m_motor.Run(direction, dutyPercent);
+
+    static constexpr int epsilon = 3;
+    int maxAngle = (targetAngle + epsilon) % MagnetSensor::c_angleRange;
+    int minAngle = (targetAngle - epsilon + MagnetSensor::c_angleRange) % MagnetSensor::c_angleRange;
+
+    std::function<bool(int)> isExpectedValue;
+    
+    if (maxAngle > minAngle)
+    {
+        isExpectedValue = [maxAngle, minAngle] (int curAngle) {
+            return curAngle < maxAngle && curAngle > minAngle;
+        };
+    }
+    else {
+        isExpectedValue = [maxAngle, minAngle] (int curAngle) {
+            return curAngle < maxAngle || curAngle > minAngle;
+        };
+    };
+
+    return m_magnetSensor.NotifyWhenAngle(move(isExpectedValue),
+        [this] (I2cStatus) { m_motor.Stop(); });
 }
