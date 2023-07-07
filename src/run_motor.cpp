@@ -9,6 +9,26 @@ int main(int argc, char *argv[])
 {
     static constexpr const char i2cFileName[] = "/dev/i2c-1";
 
+    I2cAccessor i2cAccessor;
+    if (i2cAccessor.Init(i2cFileName) != 0)
+    {
+        cerr << "i2cAccessor.Init() failed" << endl;
+        return -1;
+    }
+
+    Nozzle nozzle(i2cAccessor);
+    auto positionFuture = nozzle.FetchPosition();
+
+    cout << "Current position: ";
+    positionFuture.wait();
+    if (positionFuture.get() != I2cStatus::Success)
+    {
+        cerr << "Fetch position failed" << endl;
+        return -1;
+    }
+
+    cout << nozzle.GetPosition() << endl;
+
     if (argc < 4)
     {
         cerr << "Incorrect number of arguments." << endl;
@@ -20,16 +40,6 @@ int main(int argc, char *argv[])
         cerr << "InitializeGpio failed" << endl;
         return -1;
     }
-
-    I2cAccessor i2cAccessor;
-    if (i2cAccessor.Init(i2cFileName) != 0)
-    {
-        cerr << "i2cAccessor.Init() failed" << endl;
-        return -1;
-    }
-
-    Nozzle nozzle(i2cAccessor);
-    auto positionFuture = nozzle.FetchPosition();
 
     MotorDirection direction = MotorDirection::Left;
     switch (argv[1][0])
@@ -65,16 +75,6 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    cout << "Current position: ";
-    positionFuture.wait();
-    if (positionFuture.get() != I2cStatus::Success)
-    {
-        cerr << "Fetch position failed" << endl;
-        return -1;
-    }
-
-    cout << nozzle.GetPosition() << endl;
-
     auto rotateFuture = nozzle.RotateTo(direction, targetAngle, duty);
 
     rotateFuture.wait();
@@ -85,6 +85,9 @@ int main(int argc, char *argv[])
     }
 
     cout << "Rotation finished at position: " << nozzle.GetPosition() << endl;
+
+    // Wait for motor to stop completely
+    this_thread::sleep_for(1s);
 
     positionFuture = nozzle.FetchPosition();
 

@@ -99,6 +99,7 @@ void MagnetSensor::FillI2cTransactionReadAngle(I2cTransaction& transaction)
 
         angle = SwapBytesWord(angle);
         m_lastRawAngle.store(angle);
+        m_lastMeasurmentTimeMs.store(TimeSinceEpochMs());
         
         return I2cStatus::Completed;
     });
@@ -133,4 +134,20 @@ std::future<I2cStatus> MagnetSensor::NotifyWhenAngle(std::function<bool(int)>&& 
     m_i2cAccessor.PushTransaction(move(transaction));
 
     return measurementFuture;
+}
+
+bool MagnetSensor::IsMeasurmentStale()
+{
+    static constexpr uint32_t staleMeasurmentThresholdMs = 50;
+    return TimeSinceEpochMs() - GetLastMeasurmentTimeMs() > staleMeasurmentThresholdMs;
+}
+
+int MagnetSensor::GetRawAngleFetchIfStale()
+{
+    if (IsMeasurmentStale())
+    {
+        auto positionFuture = ReadAngleAsync();
+        positionFuture.wait();
+    }
+    return GetLastRawAngle();
 }

@@ -1,4 +1,6 @@
+#include "I2cAccessor.h"
 #include "MotorControl.h"
+#include "Utils.h"
 
 #include <pigpio.h>
 
@@ -53,8 +55,6 @@ void MotorControl::Run(MotorDirection direction, int dutyPercent)
 
 void MotorControl::Stop()
 {
-    cout << "Stopping motor" << endl;
-
     int status = gpioHardwarePWM(m_pwmPin, 0, 0);
     if (status != 0)
     {
@@ -68,13 +68,65 @@ void MotorControl::Stop()
 
 std::future<I2cStatus> Nozzle::RotateTo(MotorDirection direction, int targetAngle, int dutyPercent)
 {
-    m_motor.Run(direction, dutyPercent);
+    int startAngle = m_magnetSensor.GetRawAngleFetchIfStale();
+    cout << "startAngle: " << startAngle << endl;
+    cout << "targetAngle: " << targetAngle << endl;
+
+    int distance = 0;
+
+    // Angle increases when direction == MotorDirection::Right
+    // and decreases when direction == MotorDirection::Left
+    if (direction == MotorDirection::Right)
+    {
+        distance = targetAngle - startAngle;
+    }
+    else
+    {
+        distance = startAngle - targetAngle;
+    }
+
+    // If passing through 0 point, distance will be negative
+    if (distance < 0)
+    {
+        distance += MagnetSensor::c_angleRange;
+    }
+
+    cout << "distance: " << distance << endl;
 
     static constexpr int epsilon = 3;
-    int maxAngle = (targetAngle + epsilon) % MagnetSensor::c_angleRange;
-    int minAngle = (targetAngle - epsilon + MagnetSensor::c_angleRange) % MagnetSensor::c_angleRange;
+    static constexpr int inertionConst = 30;
+
+    if (distance <= epsilon)
+    {
+        promise<I2cStatus> pr;
+        auto fut = pr.get_future();
+        pr.set_value(I2cStatus::Success);
+        return fut;
+    }
+
+    m_motor.Run(direction, dutyPercent);
+
+    int inertionOffset = inertionConst * dutyPercent / 100;
+    inertionOffset = max(min(inertionOffset, distance / 2), epsilon);
+
+    int maxAngle = targetAngle + epsilon;
+    int minAngle = targetAngle - epsilon;
+
+    if (direction == MotorDirection::Right)
+    {
+        minAngle = targetAngle - inertionOffset;
+    }
+    else
+    {
+        maxAngle = targetAngle + inertionOffset;
+    }
+
+    minAngle = (minAngle + MagnetSensor::c_angleRange) % MagnetSensor::c_angleRange;
+    maxAngle %= MagnetSensor::c_angleRange;
 
     std::function<bool(int)> isExpectedValue;
+
+    cout << "minAngle: " << minAngle << ", maxAngle: " << maxAngle << endl;
     
     if (maxAngle > minAngle)
     {

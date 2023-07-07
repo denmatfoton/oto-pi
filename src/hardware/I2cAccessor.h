@@ -25,7 +25,7 @@ enum class I2cStatus : int
 
 /// @brief 
 /// @param int: handle to I2C file.
-/// @param std::chrono::duration&: delay next command for duration.
+/// @param std::chrono::milliseconds&: delay next command for duration.
 using I2cCommand = std::function<I2cStatus(int, std::chrono::milliseconds&)>;
 
 class I2cTransaction
