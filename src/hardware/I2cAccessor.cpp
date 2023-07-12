@@ -110,7 +110,7 @@ TimePoint I2cTransaction::RunCommand()
 
     if (ioctl(m_i2cHandle, I2C_SLAVE, m_deviceAddress) < 0)
     {
-        Complete(I2cStatus::Failure);
+        Complete(I2cStatus::CommFailure);
         return c_errorTime;
     }
 
@@ -126,20 +126,25 @@ TimePoint I2cTransaction::RunCommand()
         }
         [[fallthrough]];
     case I2cStatus::Completed:
-        if (m_optIsRecursionCompleted.has_value() &&
-            !(*m_optIsRecursionCompleted)())
+        if (!m_optIsRecursionCompleted.has_value())
+        {
+            Complete(I2cStatus::Success);
+            break;
+        }
+        status = (*m_optIsRecursionCompleted)();
+        if (status == I2cStatus::Repeat)
         {
             m_curCommand = 0;
             delayNextCommand = m_delayNextIteration;
         }
         else
         {
-            Complete(I2cStatus::Success);
+            Complete(status);
         }
         break;
     case I2cStatus::Repeat:
         break;
-    case I2cStatus::Failure:
+    case I2cStatus::CommFailure:
     default:
         Complete(status);
         return c_errorTime;

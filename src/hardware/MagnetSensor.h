@@ -54,7 +54,7 @@ public:
     void ReadStatus();
 
     std::future<I2cStatus> ReadAngleAsync();
-    std::future<I2cStatus> NotifyWhenAngle(std::function<bool(int)>&& isExpectedValue,
+    std::future<I2cStatus> NotifyWhenAngle(std::function<I2cStatus(int)>&& isExpectedValue,
         std::function<void(I2cStatus)>&& completionAction);
     
     int GetLastRawAngle() { return m_lastRawAngle.load(); }

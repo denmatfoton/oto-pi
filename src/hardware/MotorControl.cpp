@@ -66,7 +66,16 @@ void MotorControl::Stop()
     gpioWrite(m_drainPin, 0);
 }
 
-std::future<I2cStatus> Nozzle::RotateTo(MotorDirection direction, int targetAngle, int dutyPercent)
+template<typename T>
+std::future<T> GetCompletedFuture(T value)
+{
+    promise<T> pr;
+    auto fut = pr.get_future();
+    pr.set_value(value);
+    return fut;
+}
+
+std::future<I2cStatus> NozzleControl::RotateTo(MotorDirection direction, int targetAngle, int dutyPercent)
 {
     int startAngle = m_magnetSensor.GetRawAngleFetchIfStale();
     cout << "startAngle: " << startAngle << endl;
@@ -98,13 +107,10 @@ std::future<I2cStatus> Nozzle::RotateTo(MotorDirection direction, int targetAngl
 
     if (distance <= epsilon)
     {
-        promise<I2cStatus> pr;
-        auto fut = pr.get_future();
-        pr.set_value(I2cStatus::Success);
-        return fut;
+        return GetCompletedFuture(I2cStatus::Success);
     }
 
-    m_motor.Run(direction, dutyPercent);
+    m_motorNozzle.Run(direction, dutyPercent);
 
     int inertionOffset = inertionConst * dutyPercent / 100;
     inertionOffset = max(min(inertionOffset, distance / 2), epsilon);
@@ -124,22 +130,78 @@ std::future<I2cStatus> Nozzle::RotateTo(MotorDirection direction, int targetAngl
     minAngle = (minAngle + MagnetSensor::c_angleRange) % MagnetSensor::c_angleRange;
     maxAngle %= MagnetSensor::c_angleRange;
 
-    std::function<bool(int)> isExpectedValue;
+    std::function<I2cStatus(int)> isExpectedValue;
 
     cout << "minAngle: " << minAngle << ", maxAngle: " << maxAngle << endl;
     
     if (maxAngle > minAngle)
     {
         isExpectedValue = [maxAngle, minAngle] (int curAngle) {
-            return curAngle < maxAngle && curAngle > minAngle;
+            return curAngle < maxAngle && curAngle > minAngle ? I2cStatus::Success : I2cStatus::Repeat;
         };
     }
     else {
         isExpectedValue = [maxAngle, minAngle] (int curAngle) {
-            return curAngle < maxAngle || curAngle > minAngle;
+            return curAngle < maxAngle || curAngle > minAngle ? I2cStatus::Success : I2cStatus::Repeat;
         };
     };
 
     return m_magnetSensor.NotifyWhenAngle(move(isExpectedValue),
-        [this] (I2cStatus) { m_motor.Stop(); });
+        [this] (I2cStatus) { m_motorNozzle.Stop(); });
+}
+
+std::future<I2cStatus> NozzleControl::SetPressure(int targetPressure, int dutyPercent)
+{
+    int startPressure = m_pressureSensor.GetRawPressureFetchIfStale();
+
+    int diff = targetPressure - startPressure;
+    int distance = abs(diff);
+
+    static constexpr int epsilon = 1000;
+    if (distance < epsilon)
+    {
+        return GetCompletedFuture(I2cStatus::Success);
+    }
+
+    if (targetPressure < m_pressureSensor.GetMinRawPressure())
+    {
+        cerr << "targetPressure too low" << endl;
+        return GetCompletedFuture(I2cStatus::UnexpectedValue);
+    }
+
+    MotorDirection direction = diff > 0 ? MotorDirection::Open : MotorDirection::Close;
+
+    m_motorValve.Run(direction, dutyPercent);
+
+    static constexpr int inertionConst = 10'000;
+    int inertionOffset = inertionConst * dutyPercent / 100;
+    inertionOffset = max(min(inertionOffset, distance / 2), epsilon);
+
+    std::function<I2cStatus(int)> isExpectedValue;
+
+    if (direction == MotorDirection::Open)
+    {
+        int thresholdPressure = targetPressure - inertionOffset;
+        isExpectedValue = [thresholdPressure, analyzer = SequenceTrendAnalyzer<16>()] (int curPressure) mutable {
+            analyzer.Push(curPressure);
+            if (analyzer.IsFull() && analyzer.CurTrend() < 200) {
+                return I2cStatus::UnexpectedValue;
+            }
+            return curPressure > thresholdPressure ? I2cStatus::Success : I2cStatus::Repeat;
+        };
+    }
+    else
+    {
+        int thresholdPressure = targetPressure + inertionOffset;
+        isExpectedValue = [thresholdPressure, analyzer = SequenceTrendAnalyzer<16>()] (int curPressure) mutable {
+            analyzer.Push(curPressure);
+            if (analyzer.IsFull() && analyzer.CurTrend() > -200) {
+                return I2cStatus::UnexpectedValue;
+            }
+            return curPressure < thresholdPressure ? I2cStatus::Success : I2cStatus::Repeat;
+        };
+    }
+
+    return m_pressureSensor.NotifyWhenPressure(move(isExpectedValue),
+        [this] (I2cStatus) { m_motorValve.Stop(); });
 }

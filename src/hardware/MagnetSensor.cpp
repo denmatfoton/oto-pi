@@ -94,7 +94,7 @@ void MagnetSensor::FillI2cTransactionReadAngle(I2cTransaction& transaction)
         if (angle < 0)
         {
             cerr << "ReadAngle: read angle failed. status: " << angle << endl;
-            return I2cStatus::Failure;
+            return I2cStatus::CommFailure;
         }
 
         angle = SwapBytesWord(angle);
@@ -117,7 +117,7 @@ std::future<I2cStatus> MagnetSensor::ReadAngleAsync()
     return measurementFuture;
 }
 
-std::future<I2cStatus> MagnetSensor::NotifyWhenAngle(std::function<bool(int)>&& isExpectedValue,
+std::future<I2cStatus> MagnetSensor::NotifyWhenAngle(std::function<I2cStatus(int)>&& isExpectedValue,
         std::function<void(I2cStatus)>&& completionAction)
 {
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
@@ -146,8 +146,8 @@ int MagnetSensor::GetRawAngleFetchIfStale()
 {
     if (IsMeasurmentStale())
     {
-        auto positionFuture = ReadAngleAsync();
-        positionFuture.wait();
+        auto measurementFuture = ReadAngleAsync();
+        measurementFuture.wait();
     }
     return GetLastRawAngle();
 }

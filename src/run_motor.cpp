@@ -16,8 +16,9 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    Nozzle nozzle(i2cAccessor);
+    NozzleControl nozzle(i2cAccessor);
     auto positionFuture = nozzle.FetchPosition();
+    auto pressureFuture = nozzle.FetchPressure();
 
     cout << "Current position: ";
     positionFuture.wait();
@@ -28,6 +29,18 @@ int main(int argc, char *argv[])
     }
 
     cout << nozzle.GetPosition() << endl;
+    
+    cout << "Current raw pressure: ";
+    pressureFuture.wait();
+    if (pressureFuture.get() != I2cStatus::Success)
+    {
+        cerr << "Fetch pressure failed" << endl;
+        return -1;
+    }
+
+    int rawPressure = nozzle.GetPressure();
+    cout << rawPressure << endl;
+    cout << "Pressure PSI: " << PressureSensor::ConvertToPsi(rawPressure) << endl;
 
     if (argc < 4)
     {

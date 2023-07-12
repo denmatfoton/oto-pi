@@ -17,10 +17,11 @@ using TimePoint = std::chrono::time_point<std::chrono::steady_clock>;
 enum class I2cStatus : int
 {
     Success,
-    Failure,
     Completed,
     Next,
     Repeat,
+    CommFailure,
+    UnexpectedValue,
 };
 
 /// @brief 
@@ -66,7 +67,7 @@ public:
 
     std::future<I2cStatus> GetFuture() { return m_completionPromise.get_future(); }
 
-    void MakeRecursive(std::function<bool()>&& isRecursionCompleted, std::chrono::milliseconds delayNextIteration)
+    void MakeRecursive(std::function<I2cStatus()>&& isRecursionCompleted, std::chrono::milliseconds delayNextIteration)
     {
         m_optIsRecursionCompleted.emplace(std::move(isRecursionCompleted));
         m_delayNextIteration = delayNextIteration;
@@ -94,7 +95,7 @@ private:
     std::optional<std::function<void(I2cStatus)>> m_optCompletionAction;
 
     // For recursive transaction
-    std::optional<std::function<bool()>> m_optIsRecursionCompleted;
+    std::optional<std::function<I2cStatus()>> m_optIsRecursionCompleted;
     std::chrono::milliseconds m_delayNextIteration = {};
 };
 

@@ -1,5 +1,6 @@
 #include "PressureSensor.h"
 #include "I2cAccessor.h"
+#include "Utils.h"
 
 extern "C" {
 #include <i2c/smbus.h>
@@ -9,68 +10,8 @@ extern "C" {
 #include <unistd.h>
 
 #include <iostream>
-#include <memory>
 
 using namespace std;
-
-#if 0
-int PressureSensor::ReadRawPressure()
-{
-    static constexpr char requestMeasurementCmd[] = {0xAA, 0, 0};
-    int bytesWritten = write(m_i2cHandle, requestMeasurementCmd, sizeof(requestMeasurementCmd));
-    if (bytesWritten != sizeof(requestMeasurementCmd))
-    {
-        cerr << "ReadRawPressure: request measurement failed. bytesWritten: " << bytesWritten << endl;
-        return 0;
-    }
-
-    while (true)
-    {
-        this_thread::sleep_for(std::chrono::milliseconds(1));
-        int status = i2c_smbus_read_byte(m_i2cHandle);
-        if (status < 0)
-        {
-            cerr << "ReadRawPressure: read status failed. status: " << status << endl;
-            return 0;
-        }
-        if ((status & c_busyFlag) == 0 || (status == 0xFF))
-        {
-            break;
-        }
-    }
-
-    char readBuff[4];
-    int bytesRead = read(m_i2cHandle, readBuff, sizeof(readBuff));
-    if (bytesRead != sizeof(readBuff))
-    {
-        cerr << "ReadRawPressure: read measurement failed. bytesRead: " << bytesRead << endl;
-        return 0;
-    }
-
-    int status = readBuff[0];
-    if ((status & c_integrityFlag) || (status & c_mathSatFlag))
-    {
-        cerr << "ReadRawPressure: read measurement failed. status: " << std::hex << status << std::dec << endl;
-        return 0;
-    }
-
-    int reading = 0;
-    for (int i = 0; ++i < 4;)
-    {
-        reading <<= 8;
-        reading |= readBuff[i];
-    }
-
-    return reading;
-}
-
-float PressureSensor::ReadPressurePsi()
-{
-    int reading = ReadRawPressure();
-    return static_cast<float>((reading - c_outputMin) * (c_maxPsi - c_minPsi)) 
-        / static_cast<float>(c_outputMax - c_outputMin) + static_cast<float>(c_minPsi);
-}
-#endif
 
 void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
 {
@@ -80,7 +21,7 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         if (bytesWritten != sizeof(requestMeasurementCmd))
         {
             cerr << "ReadRawPressure: request measurement failed. bytesWritten: " << bytesWritten << endl;
-            return I2cStatus::Failure;
+            return I2cStatus::CommFailure;
         }
         delayNextCommand = 3ms;
         return I2cStatus::Next;
@@ -91,7 +32,7 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         if (status < 0)
         {
             cerr << "ReadRawPressure: read status failed. status: " << status << endl;
-            return I2cStatus::Failure;
+            return I2cStatus::CommFailure;
         }
         
         if ((status & c_busyFlag) == 0 || (status == 0xFF))
@@ -111,14 +52,14 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         if (bytesRead != sizeof(readBuff))
         {
             cerr << "ReadRawPressure: read measurement failed. bytesRead: " << bytesRead << endl;
-            return I2cStatus::Failure;
+            return I2cStatus::CommFailure;
         }
 
         int status = readBuff[0];
         if ((status & c_integrityFlag) || (status & c_mathSatFlag))
         {
             cerr << "ReadRawPressure: read measurement failed. status: " << std::hex << status << std::dec << endl;
-            return I2cStatus::Failure;
+            return I2cStatus::CommFailure;
         }
 
         int reading = 0;
@@ -128,7 +69,9 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
             reading |= readBuff[i];
         }
 
-        m_lastRawValue.store(reading);
+        m_lastRawValue.store(reading - c_outputMin);
+        m_minRawValue.store(min(m_minRawValue.load(), reading));
+        m_lastMeasurmentTimeMs.store(TimeSinceEpochMs());
 
         return I2cStatus::Completed;
     });
@@ -138,8 +81,44 @@ std::future<I2cStatus> PressureSensor::ReadPressureAsync()
 {
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
     FillI2cTransaction(transaction);
+
     future<I2cStatus> measurementFuture = transaction.GetFuture();
     m_i2cAccessor.PushTransaction(move(transaction));
 
     return measurementFuture;
+}
+
+std::future<I2cStatus> PressureSensor::NotifyWhenPressure(std::function<I2cStatus(int)>&& isExpectedValue,
+        std::function<void(I2cStatus)>&& completionAction)
+{
+    I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
+    
+    FillI2cTransaction(transaction);
+
+    transaction.MakeRecursive([this, checkPressure = move(isExpectedValue)] {
+        return checkPressure(GetLastRawPressure());
+    }, 2ms);
+
+    transaction.SetCompletionAction(move(completionAction));
+
+    future<I2cStatus> measurementFuture = transaction.GetFuture();
+    m_i2cAccessor.PushTransaction(move(transaction));
+
+    return measurementFuture;
+}
+
+bool PressureSensor::IsMeasurmentStale()
+{
+    static constexpr uint32_t staleMeasurmentThresholdMs = 50;
+    return TimeSinceEpochMs() - GetLastMeasurmentTimeMs() > staleMeasurmentThresholdMs;
+}
+
+int PressureSensor::GetRawPressureFetchIfStale()
+{
+    if (IsMeasurmentStale())
+    {
+        auto measurementFuture = ReadPressureAsync();
+        measurementFuture.wait();
+    }
+    return GetLastRawPressure();
 }
