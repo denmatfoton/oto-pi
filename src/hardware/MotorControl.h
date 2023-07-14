@@ -56,6 +56,8 @@ public:
     int GetPressure() { return m_pressureSensor.GetLastRawPressure(); }
     std::future<I2cStatus> CloseValve();
 
+    void TurnValve(MotorDirection direction, std::chrono::milliseconds duration, int dutyPercent);
+
 private:
     MotorControl m_motorNozzle;
     MotorControl m_motorValve;

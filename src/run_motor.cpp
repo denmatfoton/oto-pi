@@ -5,6 +5,67 @@
 
 using namespace std;
 
+int RotateValve(NozzleControl& nozzle, MotorDirection direction, int value, int duty)
+{
+    chrono::milliseconds duration(value);
+
+    nozzle.TurnValve(direction, duration, duty);
+
+    auto pressureFuture = nozzle.FetchPressure();
+    
+    cout << "Current raw pressure: ";
+    pressureFuture.wait();
+    if (pressureFuture.get() != I2cStatus::Success)
+    {
+        cerr << "Fetch pressure failed" << endl;
+        return -1;
+    }
+
+    int rawPressure = nozzle.GetPressure();
+    cout << rawPressure << endl;
+    cout << "Pressure PSI: " << PressureSensor::ConvertToPsi(rawPressure) << endl;
+
+    return 0;
+}
+
+int RotateNozzle(NozzleControl& nozzle, MotorDirection direction, int value, int duty)
+{
+    int targetAngle = value;
+    if (targetAngle < 0 || targetAngle >= MagnetSensor::c_angleRange)
+    {
+        cerr << "Incorrect targetAngle argument." << endl;
+        return -1;
+    }
+
+    auto rotateFuture = nozzle.RotateTo(direction, targetAngle, duty);
+
+    rotateFuture.wait();
+    if (rotateFuture.get() != I2cStatus::Success)
+    {
+        cerr << "RotateTo failed" << endl;
+        return -1;
+    }
+
+    cout << "Rotation finished at position: " << nozzle.GetPosition() << endl;
+
+    // Wait for motor to stop completely
+    this_thread::sleep_for(1s);
+
+    auto positionFuture = nozzle.FetchPosition();
+
+    cout << "Refresh position: ";
+    positionFuture.wait();
+    if (positionFuture.get() != I2cStatus::Success)
+    {
+        cerr << "Fetch position failed" << endl;
+        return -1;
+    }
+
+    cout << nozzle.GetPosition() << endl;
+
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
     static constexpr const char i2cFileName[] = "/dev/i2c-1";
@@ -54,32 +115,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    MotorDirection direction = MotorDirection::Left;
-    switch (argv[1][0])
-    {
-        case 'c':
-            direction = MotorDirection::Close;
-            break;
-        case 'o':
-            direction = MotorDirection::Open;
-            break;
-        case 'l':
-            direction = MotorDirection::Left;
-            break;
-        case 'r':
-            direction = MotorDirection::Right;
-            break;
-        default:
-            cerr << "Incorrect direction argument." << endl;
-            return -1;
-    }
-
-    int targetAngle = strtol(argv[2], nullptr, 10);
-    if (targetAngle < 0 || targetAngle >= MagnetSensor::c_angleRange)
-    {
-        cerr << "Incorrect targetAngle argument." << endl;
-        return -1;
-    }
+    int value = strtol(argv[2], nullptr, 10);
     
     int duty = strtol(argv[3], nullptr, 10);
     if (duty < 0 || duty > 100)
@@ -88,31 +124,29 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    auto rotateFuture = nozzle.RotateTo(direction, targetAngle, duty);
-
-    rotateFuture.wait();
-    if (rotateFuture.get() != I2cStatus::Success)
+    MotorDirection direction = MotorDirection::Left;
+    switch (argv[1][0])
     {
-        cerr << "RotateTo failed" << endl;
-        return -1;
+        case 'c':
+            direction = MotorDirection::Close;
+            RotateValve(nozzle, direction, value, duty);
+            break;
+        case 'o':
+            direction = MotorDirection::Open;
+            RotateValve(nozzle, direction, value, duty);
+            break;
+        case 'l':
+            direction = MotorDirection::Left;
+            RotateNozzle(nozzle, direction, value, duty);
+            break;
+        case 'r':
+            direction = MotorDirection::Right;
+            RotateNozzle(nozzle, direction, value, duty);
+            break;
+        default:
+            cerr << "Incorrect direction argument." << endl;
+            return -1;
     }
-
-    cout << "Rotation finished at position: " << nozzle.GetPosition() << endl;
-
-    // Wait for motor to stop completely
-    this_thread::sleep_for(1s);
-
-    positionFuture = nozzle.FetchPosition();
-
-    cout << "Refresh position: ";
-    positionFuture.wait();
-    if (positionFuture.get() != I2cStatus::Success)
-    {
-        cerr << "Fetch position failed" << endl;
-        return -1;
-    }
-
-    cout << nozzle.GetPosition() << endl;
 
     return 0;
 }

@@ -205,3 +205,10 @@ std::future<I2cStatus> NozzleControl::SetPressure(int targetPressure, int dutyPe
     return m_pressureSensor.NotifyWhenPressure(move(isExpectedValue),
         [this] (I2cStatus) { m_motorValve.Stop(); });
 }
+
+void NozzleControl::TurnValve(MotorDirection direction, std::chrono::milliseconds duration, int dutyPercent)
+{
+    m_motorValve.Run(direction, dutyPercent);
+    this_thread::sleep_for(duration);
+    m_motorValve.Stop();
+}
