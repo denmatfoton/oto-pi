@@ -120,5 +120,5 @@ int PressureSensor::GetRawPressureFetchIfStale()
         auto measurementFuture = ReadPressureAsync();
         measurementFuture.wait();
     }
-    return GetLastRawPressure();
+    return IsMeasurmentStale() ? -1 : GetLastRawPressure();
 }

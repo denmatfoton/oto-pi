@@ -11,7 +11,6 @@ class I2cAccessor;
 class I2cTransaction;
 
 enum class I2cStatus : int;
-using TimePoint = std::chrono::time_point<std::chrono::steady_clock>;
 
 union ConfigReg
 {

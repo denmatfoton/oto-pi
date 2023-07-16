@@ -49,6 +49,6 @@ private:
 
     I2cAccessor& m_i2cAccessor;
     std::atomic_int32_t m_lastRawValue = 0;
-    std::atomic_int32_t m_minRawValue = INT_MAX;
+    std::atomic_int32_t m_minRawValue = INT_MAX / 2;
     std::atomic_uint32_t m_lastMeasurmentTimeMs = 0;
 };

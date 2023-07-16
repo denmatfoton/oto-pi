@@ -1,7 +1,8 @@
 #pragma once
 
+#include "CommonDefs.h"
+
 #include <atomic>
-#include <chrono>
 #include <condition_variable>
 #include <functional>
 #include <future>
@@ -10,19 +11,6 @@
 #include <queue>
 #include <optional>
 #include <thread>
-
-class I2cTransaction;
-using TimePoint = std::chrono::time_point<std::chrono::steady_clock>;
-
-enum class I2cStatus : int
-{
-    Success,
-    Completed,
-    Next,
-    Repeat,
-    CommFailure,
-    UnexpectedValue,
-};
 
 /// @brief 
 /// @param int: handle to I2C file.

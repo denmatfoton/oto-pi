@@ -1,5 +1,7 @@
 #pragma once
 
+#include "CommonDefs.h"
+
 #include "MagnetSensor.h"
 #include "PressureSensor.h"
 
@@ -23,12 +25,18 @@ public:
 
     void Run(MotorDirection direction, int dutyPercent);
     void Stop();
+    TimePoint RunStartedAt() { return m_runStart; }
+    void RestoreInitialPosition();
 
     static int InitializeGpio();
 
 private:
-    int m_pwmPin = -1;
-    int m_drainPin = -1;
+    const int m_pwmPin = -1;
+    const int m_drainPin = -1;
+
+    TimePoint m_runStart;
+    int m_runDirection = 0;
+    int m_directionalTimeAccumulatorMs = 0;
 };
 
 class NozzleControl
@@ -38,6 +46,10 @@ private:
     static constexpr int c_drainPinNozzle = 17;
     static constexpr int c_pwmPinValve = 13;
     static constexpr int c_drainPinValve = 6;
+
+    // Custom definitions
+    static constexpr int c_waterPressureThreshold = 3'000;
+    static constexpr int c_valveOpeningTimeoutMs = 1000;
 
 public:
     NozzleControl(I2cAccessor& i2cAccessor) :
@@ -54,11 +66,19 @@ public:
     std::future<I2cStatus> SetPressure(int targetPressure, int dutyPercent);
     std::future<I2cStatus> FetchPressure() { return m_pressureSensor.ReadPressureAsync(); }
     int GetPressure() { return m_pressureSensor.GetLastRawPressure(); }
+
+    bool IsWaterPressurePresent();
+    std::future<I2cStatus> OpenValve();
     std::future<I2cStatus> CloseValve();
 
     void TurnValve(MotorDirection direction, std::chrono::milliseconds duration, int dutyPercent);
 
 private:
+    void HandleValveState(I2cStatus status, MotorDirection direction);
+    bool IsItWaterPressure(int curPressure) {
+        return curPressure > m_pressureSensor.GetMinRawPressure() + c_waterPressureThreshold;
+    }
+
     MotorControl m_motorNozzle;
     MotorControl m_motorValve;
     MagnetSensor m_magnetSensor;
