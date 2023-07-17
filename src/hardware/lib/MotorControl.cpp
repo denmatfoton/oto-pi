@@ -1,0 +1,84 @@
+#include "MotorControl.h"
+
+#include <pigpio.h>
+
+#include <iostream>
+#include <thread>
+
+using namespace std;
+
+MotorControl::MotorControl(int pwmPin, int drainPin) :
+    m_pwmPin(pwmPin), m_drainPin(drainPin)
+{
+    if (InitializeGpio() < 0)
+    {
+        cerr << "InitializeGpio failed" << endl;
+    }
+
+    gpioSetMode(m_pwmPin, PI_OUTPUT);
+    gpioWrite(m_pwmPin, 0);
+    gpioSetMode(m_drainPin, PI_OUTPUT);
+    gpioWrite(m_drainPin, 0);
+}
+
+int MotorControl::InitializeGpio()
+{
+    static bool gpioInitialized = false;
+    if (!gpioInitialized)
+    {
+        if (gpioCfgClock(5, 1, 0)) return -1;
+        if (gpioInitialise() < 0) return -2;
+        gpioInitialized = true;
+    }
+
+    return 0;
+}
+
+void MotorControl::Run(MotorDirection direction, int dutyPercent)
+{
+    int drainValue = static_cast<int>(direction);
+    dutyPercent += (100 - dutyPercent * 2) * drainValue; // Invert duty in case drainValue == 1.
+    int duty = dutyPercent * 10000;
+
+    int status = gpioHardwarePWM(m_pwmPin, c_pwmFreq, duty);
+    if (status != 0)
+    {
+        cerr << "gpioHardwarePWM failed with: " << status << endl;
+        return;
+    }
+
+    gpioWrite(m_drainPin, drainValue);
+
+    m_runStart = chrono::steady_clock::now();
+    m_runDirection = drainValue * 2 - 1;
+}
+
+void MotorControl::Stop()
+{
+    int status = gpioHardwarePWM(m_pwmPin, 0, 0);
+    if (status != 0)
+    {
+        cerr << "gpioHardwarePWM failed with: " << status << endl;
+        return;
+    }
+
+    if (m_runDirection != 0)
+    {
+        auto end = chrono::steady_clock::now();
+        int duration = static_cast<int>(chrono::duration_cast<chrono::milliseconds>(end - m_runStart).count());
+        m_directionalTimeAccumulatorMs += duration * m_runDirection;
+        m_runDirection = 0;
+    }
+
+    gpioWrite(m_pwmPin, 0);
+    gpioWrite(m_drainPin, 0);
+}
+
+void MotorControl::RestoreInitialPosition()
+{
+    cout << "RestoreInitialPosition, m_directionalTimeAccumulatorMs: " << m_directionalTimeAccumulatorMs << endl;
+    MotorDirection direction = m_directionalTimeAccumulatorMs > 0 ? MotorDirection::Close : MotorDirection::Open;
+    Run(direction, 100);
+    this_thread::sleep_for(chrono::milliseconds(abs(m_directionalTimeAccumulatorMs)));
+    Stop();
+}
