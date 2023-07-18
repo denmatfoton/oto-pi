@@ -10,6 +10,7 @@ set(MOTOR_SRCS
 )
 
 add_subdirectory("hardware")
+add_subdirectory("irrigation")
 
 set(COMMON_LIBS pthread i2c pigpio rt hardware)
 
