@@ -17,7 +17,7 @@ static void ReadBasic(ifstream& in, T& value)
     in.read(reinterpret_cast<char*>(&value), sizeof(value));
 }
 
-int Zone::SaveToFile(const char* fileName) const
+int Irrigation::Zone::SaveToFile(const char* fileName) const
 {
     try
     {
@@ -42,7 +42,7 @@ int Zone::SaveToFile(const char* fileName) const
     return 0;
 }
 
-int Zone::LoadFromFile(const char* fileName)
+int Irrigation::Zone::LoadFromFile(const char* fileName)
 {
     try
     {

@@ -4,6 +4,8 @@
 #include "MotorControl.h"
 #include "PressureSensor.h"
 
+#include <memory>
+
 class NozzleControl
 {
 private:
@@ -17,20 +19,20 @@ private:
     static constexpr int c_valveOpeningTimeoutMs = 1000;
 
 public:
-    NozzleControl(I2cAccessor& i2cAccessor) :
-        m_motorNozzle(c_pwmPinNozzle, c_drainPinNozzle),
-        m_motorValve(c_pwmPinValve, c_drainPinValve),
-        m_magnetSensor(i2cAccessor),
-        m_pressureSensor(i2cAccessor)
-    {}
+    NozzleControl();
+    ~NozzleControl();
+
+    int Init();
 
     std::future<I2cStatus> RotateTo(MotorDirection direction, int targetAngle, int dutyPercent);
     std::future<I2cStatus> FetchPosition() { return m_magnetSensor.ReadAngleAsync(); }
     int GetPosition() { return m_magnetSensor.GetLastRawAngle(); }
+    int GetPositionFetchIfStale() { return m_magnetSensor.GetRawAngleFetchIfStale(); }
 
     std::future<I2cStatus> SetPressure(int targetPressure, int dutyPercent);
     std::future<I2cStatus> FetchPressure() { return m_pressureSensor.ReadPressureAsync(); }
     int GetPressure() { return m_pressureSensor.GetLastRawPressure(); }
+    int GetPressureFetchIfStale() { return m_pressureSensor.GetRawPressureFetchIfStale(); }
 
     bool IsWaterPressurePresent();
     std::future<I2cStatus> OpenValve();
@@ -46,6 +48,7 @@ private:
 
     MotorControl m_motorNozzle;
     MotorControl m_motorValve;
+    std::unique_ptr<I2cAccessor> m_spI2cAccessor;
     MagnetSensor m_magnetSensor;
     PressureSensor m_pressureSensor;
 };

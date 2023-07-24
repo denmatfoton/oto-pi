@@ -2,6 +2,8 @@
 
 #include <vector>
 
+namespace Irrigation {
+
 enum class ZoneType : int
 {
     Area,
@@ -44,3 +46,5 @@ private:
     ZoneType m_type = ZoneType::Area;
     std::vector<Coord> m_points;
 };
+
+}

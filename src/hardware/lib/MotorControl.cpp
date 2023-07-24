@@ -7,18 +7,21 @@
 
 using namespace std;
 
-MotorControl::MotorControl(int pwmPin, int drainPin) :
-    m_pwmPin(pwmPin), m_drainPin(drainPin)
+int MotorControl::Init()
 {
-    if (InitializeGpio() < 0)
+    int status = InitializeGpio();
+    if (status < 0)
     {
         cerr << "InitializeGpio failed" << endl;
+        return status;
     }
 
     gpioSetMode(m_pwmPin, PI_OUTPUT);
     gpioWrite(m_pwmPin, 0);
     gpioSetMode(m_drainPin, PI_OUTPUT);
     gpioWrite(m_drainPin, 0);
+
+    return 0;
 }
 
 int MotorControl::InitializeGpio()

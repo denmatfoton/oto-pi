@@ -17,9 +17,11 @@ private:
     static constexpr int c_pwmFreq = 1000;
 
 public:
-    MotorControl(int pwmPin, int drainPin);
+    MotorControl(int pwmPin, int drainPin) :
+        m_pwmPin(pwmPin), m_drainPin(drainPin) {}
     ~MotorControl() { Stop(); }
 
+    int Init();
     void Run(MotorDirection direction, int dutyPercent);
     void Stop();
     TimePoint RunStartedAt() { return m_runStart; }

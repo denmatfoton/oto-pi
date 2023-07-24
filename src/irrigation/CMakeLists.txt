@@ -1,9 +1,10 @@
 set(IRRIGATION_SRCS
+    lib/Sprinkler.cpp
 	lib/Zone.cpp
 )
 
 add_library(irrigation STATIC ${IRRIGATION_SRCS})
-target_include_directories(irrigation PUBLIC include)
+target_include_directories(irrigation PUBLIC include ../hardware/include)
 
 # Tests
 enable_testing()

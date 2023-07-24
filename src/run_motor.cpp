@@ -1,4 +1,3 @@
-#include "I2cAccessor.h"
 #include "NozzleControl.h"
 
 #include <iostream>
@@ -68,16 +67,9 @@ int RotateNozzle(NozzleControl& nozzle, MotorDirection direction, int value, int
 
 int main(int argc, char *argv[])
 {
-    static constexpr const char i2cFileName[] = "/dev/i2c-1";
+    NozzleControl nozzle;
+    IfFailRet(nozzle.Init());
 
-    I2cAccessor i2cAccessor;
-    if (i2cAccessor.Init(i2cFileName) != 0)
-    {
-        cerr << "i2cAccessor.Init() failed" << endl;
-        return -1;
-    }
-
-    NozzleControl nozzle(i2cAccessor);
     auto positionFuture = nozzle.FetchPosition();
     auto pressureFuture = nozzle.FetchPressure();
 
@@ -106,12 +98,6 @@ int main(int argc, char *argv[])
     if (argc < 4)
     {
         cerr << "Incorrect number of arguments." << endl;
-        return -1;
-    }
-
-    if (MotorControl::InitializeGpio() < 0)
-    {
-        cerr << "InitializeGpio failed" << endl;
         return -1;
     }
 

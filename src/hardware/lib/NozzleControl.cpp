@@ -1,4 +1,6 @@
 #include "NozzleControl.h"
+
+#include "I2cAccessor.h"
 #include "Utils.h"
 
 #include <iostream>
@@ -6,12 +8,33 @@
 using namespace std;
 
 template<typename T>
-std::future<T> GetCompletedFuture(T value)
+static std::future<T> GetCompletedFuture(T value)
 {
     promise<T> pr;
     auto fut = pr.get_future();
     pr.set_value(value);
     return fut;
+}
+
+NozzleControl::NozzleControl() :
+    m_motorNozzle(c_pwmPinNozzle, c_drainPinNozzle),
+    m_motorValve(c_pwmPinValve, c_drainPinValve),
+    m_spI2cAccessor(new I2cAccessor()),
+    m_magnetSensor(*m_spI2cAccessor),
+    m_pressureSensor(*m_spI2cAccessor)
+{}
+
+NozzleControl::~NozzleControl()
+{
+    CloseValve();
+}
+
+int NozzleControl::Init()
+{
+    IfFailRet(m_spI2cAccessor->Init(c_i2cFileName));
+    IfFailRet(m_motorNozzle.Init());
+    IfFailRet(m_motorValve.Init());
+    return 0;
 }
 
 std::future<I2cStatus> NozzleControl::RotateTo(MotorDirection direction, int targetAngle, int dutyPercent)
