@@ -25,11 +25,13 @@ public:
     int Init();
 
     std::future<I2cStatus> RotateTo(MotorDirection direction, int targetAngle, int dutyPercent);
+    std::future<I2cStatus> RotateDiff(int diffAngle, int dutyPercent);
     std::future<I2cStatus> FetchPosition() { return m_magnetSensor.ReadAngleAsync(); }
     int GetPosition() { return m_magnetSensor.GetLastRawAngle(); }
     int GetPositionFetchIfStale() { return m_magnetSensor.GetRawAngleFetchIfStale(); }
 
     std::future<I2cStatus> SetPressure(int targetPressure, int dutyPercent);
+    std::future<I2cStatus> SetPressureDiff(int diffPressure, int dutyPercent);
     std::future<I2cStatus> FetchPressure() { return m_pressureSensor.ReadPressureAsync(); }
     int GetPressure() { return m_pressureSensor.GetLastRawPressure(); }
     int GetPressureFetchIfStale() { return m_pressureSensor.GetRawPressureFetchIfStale(); }
@@ -46,6 +48,8 @@ private:
         return curPressure > m_pressureSensor.GetMinRawPressure() + c_waterPressureThreshold;
     }
 
+    int m_lastTargetAngle = -1;
+    int m_lastTargetPressure = -1;
     MotorControl m_motorNozzle;
     MotorControl m_motorValve;
     std::unique_ptr<I2cAccessor> m_spI2cAccessor;

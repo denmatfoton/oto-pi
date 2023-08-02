@@ -24,5 +24,9 @@ target_include_directories(run_motor PRIVATE hardware/include)
 target_link_libraries(run_motor PRIVATE ${COMMON_LIBS})
 
 target_sources(create_zone PRIVATE create_zone.cpp)
-target_include_directories(create_zone PRIVATE hardware/include irrigation/include)
+target_include_directories(create_zone PRIVATE
+	hardware/include
+	irrigation/include
+	utils/include
+)
 target_link_libraries(create_zone PRIVATE ${COMMON_LIBS} irrigation)

@@ -22,7 +22,8 @@ public:
     // Zone recording
     int StartZoneRecording(ZoneType type);
     void AddZonePoint();
-    std::unique_ptr<Zone>&& GetNewZone() { return std::move(m_spNewZone); }
+    const Zone* RecordedZone() const { return m_spNewZone.get(); }
+    std::unique_ptr<Zone>&& TakeRecordedZone() { return std::move(m_spNewZone); }
 
     NozzleControl& GetNozzleControl() { return *m_spNozzle; }
 

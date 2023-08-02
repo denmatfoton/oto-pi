@@ -39,9 +39,8 @@ int NozzleControl::Init()
 
 std::future<I2cStatus> NozzleControl::RotateTo(MotorDirection direction, int targetAngle, int dutyPercent)
 {
+    m_lastTargetAngle = targetAngle;
     int startAngle = m_magnetSensor.GetRawAngleFetchIfStale();
-    cout << "startAngle: " << startAngle << endl;
-    cout << "targetAngle: " << targetAngle << endl;
 
     int distance = 0;
 
@@ -62,10 +61,8 @@ std::future<I2cStatus> NozzleControl::RotateTo(MotorDirection direction, int tar
         distance += MagnetSensor::c_angleRange;
     }
 
-    cout << "distance: " << distance << endl;
-
     static constexpr int epsilon = 3;
-    static constexpr int inertionConst = 30;
+    static constexpr int inertialConst = 30;
 
     if (distance <= epsilon)
     {
@@ -74,19 +71,19 @@ std::future<I2cStatus> NozzleControl::RotateTo(MotorDirection direction, int tar
 
     m_motorNozzle.Run(direction, dutyPercent);
 
-    int inertionOffset = inertionConst * dutyPercent / 100;
-    inertionOffset = max(min(inertionOffset, distance / 2), epsilon);
+    int inertialOffset = inertialConst * dutyPercent / 100;
+    inertialOffset = max(min(inertialOffset, distance / 2), epsilon);
 
     int maxAngle = targetAngle + epsilon;
     int minAngle = targetAngle - epsilon;
 
     if (direction == MotorDirection::Right)
     {
-        minAngle = targetAngle - inertionOffset;
+        minAngle = targetAngle - inertialOffset;
     }
     else
     {
-        maxAngle = targetAngle + inertionOffset;
+        maxAngle = targetAngle + inertialOffset;
     }
 
     minAngle = (minAngle + MagnetSensor::c_angleRange) % MagnetSensor::c_angleRange;
@@ -112,8 +109,22 @@ std::future<I2cStatus> NozzleControl::RotateTo(MotorDirection direction, int tar
         [this] (I2cStatus) { m_motorNozzle.Stop(); });
 }
 
+std::future<I2cStatus> NozzleControl::RotateDiff(int diffAngle, int dutyPercent)
+{
+    if (m_lastTargetAngle < 0)
+    {
+        m_lastTargetAngle = GetPositionFetchIfStale();
+    }
+
+    MotorDirection direction = diffAngle > 0 ? MotorDirection::Right : MotorDirection::Left;
+    int targetAngle = (m_lastTargetAngle + diffAngle + MagnetSensor::c_angleRange) % MagnetSensor::c_angleRange;
+
+    return RotateTo(direction, targetAngle, dutyPercent);
+}
+
 std::future<I2cStatus> NozzleControl::SetPressure(int targetPressure, int dutyPercent)
 {
+    m_lastTargetPressure = targetPressure;
     int startPressure = m_pressureSensor.GetRawPressureFetchIfStale();
 
     int diff = targetPressure - startPressure;
@@ -135,15 +146,15 @@ std::future<I2cStatus> NozzleControl::SetPressure(int targetPressure, int dutyPe
 
     m_motorValve.Run(direction, dutyPercent);
 
-    static constexpr int inertionConst = 10'000;
-    int inertionOffset = inertionConst * dutyPercent / 100;
-    inertionOffset = max(min(inertionOffset, distance / 2), epsilon);
+    static constexpr int inertialConst = 10'000;
+    int inertialOffset = inertialConst * dutyPercent / 100;
+    inertialOffset = max(min(inertialOffset, distance / 2), epsilon);
 
     std::function<I2cStatus(int)> isExpectedValue;
 
     if (direction == MotorDirection::Open)
     {
-        int thresholdPressure = targetPressure - inertionOffset;
+        int thresholdPressure = targetPressure - inertialOffset;
         isExpectedValue = [thresholdPressure, analyzer = SequenceTrendAnalyzer<16>()] (int curPressure) mutable {
             analyzer.Push(curPressure);
             if (analyzer.IsFull() && analyzer.CurTrend() < 200) {
@@ -154,7 +165,7 @@ std::future<I2cStatus> NozzleControl::SetPressure(int targetPressure, int dutyPe
     }
     else
     {
-        int thresholdPressure = targetPressure + inertionOffset;
+        int thresholdPressure = targetPressure + inertialOffset;
         isExpectedValue = [thresholdPressure, analyzer = SequenceTrendAnalyzer<16>()] (int curPressure) mutable {
             analyzer.Push(curPressure);
             if (analyzer.IsFull() && analyzer.CurTrend() > -200) {
@@ -166,6 +177,16 @@ std::future<I2cStatus> NozzleControl::SetPressure(int targetPressure, int dutyPe
 
     return m_pressureSensor.NotifyWhenPressure(move(isExpectedValue),
         [this] (I2cStatus) { m_motorValve.Stop(); });
+}
+
+std::future<I2cStatus> NozzleControl::SetPressureDiff(int diffPressure, int dutyPercent)
+{
+    if (m_lastTargetPressure < 0)
+    {
+        m_lastTargetPressure = GetPressureFetchIfStale();
+    }
+
+    return SetPressure(m_lastTargetPressure + diffPressure, dutyPercent);
 }
 
 bool NozzleControl::IsWaterPressurePresent()
