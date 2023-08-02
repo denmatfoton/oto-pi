@@ -29,4 +29,4 @@ target_include_directories(create_zone PRIVATE
 	irrigation/include
 	utils/include
 )
-target_link_libraries(create_zone PRIVATE ${COMMON_LIBS} irrigation)
+target_link_libraries(create_zone PRIVATE ${COMMON_LIBS} irrigation ncurses)

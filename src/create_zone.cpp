@@ -1,4 +1,4 @@
-#include "CursesWraper.h"
+#include "CursesWrapper.h"
 #include "NozzleControl.h"
 #include "Sprinkler.h"
 
@@ -34,7 +34,6 @@ int ProcessInput(Irrigation::Sprinkler& sprinkler, const char* zoneFileName, str
     {
         case KEY_UP:
             nozzle.SetPressureDiff(pressureIncr, defaultDuty);
-            x = max(x - 1, 0);
             break;
 
         case KEY_DOWN:
