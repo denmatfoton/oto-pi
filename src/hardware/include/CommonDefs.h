@@ -12,6 +12,7 @@ enum class I2cStatus : int
     Next,
     Repeat,
     CommFailure,
+    Abort,
 
     // Custom status
     UnexpectedValue,

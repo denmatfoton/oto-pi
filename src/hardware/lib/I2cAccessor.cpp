@@ -49,9 +49,18 @@ void I2cAccessor::PushTransaction(I2cTransaction&& transaction)
 {
     {
         unique_lock lk(m_mutex);
-        m_transactions.emplace_front(move(transaction));
+        for (auto it : m_transactionsMap) // Allow single transaction per device
+        {
+            // Abort all old transactions
+            if (it.second.m_deviceAddress == transaction.m_deviceAddress)
+            {
+                it.second.m_isAborted = true;
+            }
+        }
+        m_transactionsMap.emplace(m_nextTransactionId, move(transaction));
         auto curTime = chrono::steady_clock::now();
-        m_tasks.emplace(curTime, m_transactions.begin());
+        m_tasksQueue.emplace(curTime, m_nextTransactionId);
+        ++m_nextTransactionId;
     }
     m_cv.notify_one();
 }
@@ -63,46 +72,53 @@ void I2cAccessor::LoopFunc()
         unique_lock lk(m_mutex);
         if (m_quit) break;
 
-        if (m_tasks.empty())
+        if (m_tasksQueue.empty())
         {
             m_cv.wait(lk);
         }
         else
         {
             auto curTime = chrono::steady_clock::now();
-            if (curTime < m_tasks.top().startTime)
+            if (curTime < m_tasksQueue.top().startTime)
             {
-                m_cv.wait_until(lk, m_tasks.top().startTime);
+                m_cv.wait_until(lk, m_tasksQueue.top().startTime);
             }
         }
         
         if (m_quit) break;
-        if (m_tasks.empty()) continue;
+        if (m_tasksQueue.empty()) continue;
         auto curTime = chrono::steady_clock::now();
-        if (curTime < m_tasks.top().startTime) continue;
+        if (curTime < m_tasksQueue.top().startTime) continue;
 
-        auto curTask = move(m_tasks.top());
-        m_tasks.pop();
+        auto curTask = move(m_tasksQueue.top());
+        m_tasksQueue.pop();
         
         lk.unlock();
 
-        TimePoint nextTime = curTask.itTransaction->RunCommand();
+        I2cTransaction& curTransaction = m_transactionsMap[curTask.transactionId];
+        TimePoint nextTime = curTransaction.RunCommand();
 
         lk.lock();
 
-        if (curTask.itTransaction->IsCompleted())
+        if (curTransaction.IsCompleted())
         {
-            m_transactions.erase(curTask.itTransaction);
+            m_transactionsMap.erase(curTask.transactionId);
         }
         else
         {
-            m_tasks.emplace(nextTime, curTask.itTransaction);
+            m_tasksQueue.emplace(nextTime, curTask.transactionId);
         }
     }
 }
 
 TimePoint I2cTransaction::RunCommand()
 {
+    if (m_isAborted)
+    {
+        Complete(I2cStatus::Abort);
+        return c_errorTime;
+    }
+
     if (IsCompleted() || !IsValid())
     {
         return c_errorTime;

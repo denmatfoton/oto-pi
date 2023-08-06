@@ -48,8 +48,6 @@ private:
         return curPressure > m_pressureSensor.GetMinRawPressure() + c_waterPressureThreshold;
     }
 
-    int m_lastTargetAngle = -1;
-    int m_lastTargetPressure = -1;
     MotorControl m_motorNozzle;
     MotorControl m_motorValve;
     std::unique_ptr<I2cAccessor> m_spI2cAccessor;

@@ -6,11 +6,11 @@
 #include <condition_variable>
 #include <functional>
 #include <future>
-#include <list>
 #include <mutex>
 #include <queue>
 #include <optional>
 #include <thread>
+#include <unordered_map>
 
 /// @brief 
 /// @param int: handle to I2C file.
@@ -32,6 +32,7 @@ public:
         m_commandsCount(other.m_commandsCount),
         m_curCommand(other.m_curCommand),
         m_completionPromise(std::move(other.m_completionPromise)),
+        m_isAborted(other.m_isAborted),
         m_optCompletionAction(std::move(other.m_optCompletionAction)),
         m_optIsRecursionCompleted(std::move(other.m_optIsRecursionCompleted)),
         m_delayNextIteration(other.m_delayNextIteration)
@@ -79,6 +80,7 @@ private:
     int m_commandsCount = 0;
     int m_curCommand = 0;
     std::promise<I2cStatus> m_completionPromise;
+    bool m_isAborted = false;
 
     std::optional<std::function<void(I2cStatus)>> m_optCompletionAction;
 
@@ -112,11 +114,11 @@ private:
 
     struct Task
     {
-        Task(TimePoint start, TransactionIterator it) :
-            startTime(start), itTransaction(it) {}
+        Task(TimePoint start, int id) :
+            startTime(start), deviceAddress(devAddress) {}
 
         TimePoint startTime;
-        TransactionIterator itTransaction;
+        int transactionId;
     };
 
     struct CompareTasks {
@@ -125,9 +127,10 @@ private:
         }
     };
 
-    std::priority_queue<Task, std::vector<Task>, CompareTasks> m_tasks{CompareTasks()};
-    std::list<I2cTransaction> m_transactions;
+    std::priority_queue<Task, std::vector<Task>, CompareTasks> m_tasksQueue{CompareTasks()};
+    std::unordered_map<int, I2cTransaction> m_transactionsMap;
 
+    int m_nextTransactionId = 0;
     bool m_quit = false;
     std::mutex m_mutex;
     std::condition_variable m_cv;

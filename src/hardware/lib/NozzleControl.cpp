@@ -112,13 +112,10 @@ std::future<I2cStatus> NozzleControl::RotateTo(MotorDirection direction, int tar
 
 std::future<I2cStatus> NozzleControl::RotateDiff(int diffAngle, int dutyPercent)
 {
-    if (m_lastTargetAngle < 0)
-    {
-        m_lastTargetAngle = GetPositionFetchIfStale();
-    }
+    int curPosition = GetPositionFetchIfStale();
 
     MotorDirection direction = diffAngle > 0 ? MotorDirection::Right : MotorDirection::Left;
-    int targetAngle = (m_lastTargetAngle + diffAngle + MagnetSensor::c_angleRange) % MagnetSensor::c_angleRange;
+    int targetAngle = (curPosition + diffAngle + MagnetSensor::c_angleRange) % MagnetSensor::c_angleRange;
 
     return RotateTo(direction, targetAngle, dutyPercent);
 }
@@ -182,12 +179,8 @@ std::future<I2cStatus> NozzleControl::SetPressure(int targetPressure, int dutyPe
 
 std::future<I2cStatus> NozzleControl::SetPressureDiff(int diffPressure, int dutyPercent)
 {
-    if (m_lastTargetPressure < 0)
-    {
-        m_lastTargetPressure = GetPressureFetchIfStale();
-    }
-
-    return SetPressure(m_lastTargetPressure + diffPressure, dutyPercent);
+    int curPressure = GetPressureFetchIfStale();
+    return SetPressure(curPressure + diffPressure, dutyPercent);
 }
 
 bool NozzleControl::IsWaterPressurePresent()
