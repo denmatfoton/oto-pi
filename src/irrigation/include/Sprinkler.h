@@ -20,7 +20,7 @@ public:
     void ApplyWater(const Zone& zone, float density);
 
     // Zone recording
-    int StartZoneRecording(ZoneType type);
+    void StartZoneRecording(ZoneType type);
     void AddZonePoint();
     const Zone* RecordedZone() const { return m_spNewZone.get(); }
     std::unique_ptr<Zone>&& TakeRecordedZone() { return std::move(m_spNewZone); }

@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
     Irrigation::Sprinkler sprinkler;
     IfFailRet(sprinkler.Init());
 
-    IfFailRet(sprinkler.StartZoneRecording(zoneType));
+    sprinkler.StartZoneRecording(zoneType);
     NozzleControl& nozzle = sprinkler.GetNozzleControl();
 
     {
@@ -115,10 +115,9 @@ int main(int argc, char *argv[])
             return -1;
         }
 
-        bool isActive = true;
         string message;
 
-        while (isActive)
+        while (true)
         {
             clear();
 

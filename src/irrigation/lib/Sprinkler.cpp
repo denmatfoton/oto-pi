@@ -49,12 +49,9 @@ void Sprinkler::ApplyPoints(const std::vector<Coord>& /*points*/, float /*densit
     
 }
 
-int Sprinkler::StartZoneRecording(ZoneType type)
+void Sprinkler::StartZoneRecording(ZoneType type)
 {
     m_spNewZone.reset(new Zone(type));
-    auto fut = m_spNozzle->OpenValve();
-    fut.wait();
-    return fut.get() == I2cStatus::Success ? 0 : -1;
 }
 
 void Sprinkler::AddZonePoint()

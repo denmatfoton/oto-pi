@@ -34,6 +34,7 @@ int NozzleControl::Init()
     IfFailRet(m_spI2cAccessor->Init(c_i2cFileName));
     IfFailRet(m_motorNozzle.Init());
     IfFailRet(m_motorValve.Init());
+    cout << "NozzleControl::Init succeeded" << endl;
     return 0;
 }
 
