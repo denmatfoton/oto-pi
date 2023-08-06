@@ -136,6 +136,8 @@ int main(int argc, char *argv[])
             {
                 break;
             }
+	    
+	    this_thread::sleep_for(40ms);
         }
     }
 

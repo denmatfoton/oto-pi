@@ -8,6 +8,7 @@ public:
 
     int Init()
     {
+        printf("Starting ncurses\n");
         if ( (m_mainWindow = initscr()) == nullptr )
         {
             fprintf(stderr, "Error calling initscr()\n");
@@ -26,6 +27,7 @@ public:
 
     ~CursesWrapper()
     {
+        printf("Stopping ncurses\n");
         // Stops curses and cleans up.
         nl();
         delwin(m_mainWindow);
