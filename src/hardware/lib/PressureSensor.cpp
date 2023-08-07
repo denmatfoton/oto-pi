@@ -69,7 +69,8 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
             reading |= readBuff[i];
         }
 
-        m_lastRawValue.store(reading - c_outputMin);
+        reading -= c_outputMin;
+        m_lastRawValue.store(reading);
         m_minRawValue.store(min(m_minRawValue.load(), reading));
         m_lastMeasurementTimeMs.store(TimeSinceEpochMs());
 
