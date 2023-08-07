@@ -25,6 +25,7 @@ int RotateValve(NozzleControl& nozzle, MotorDirection direction, int value, int 
     cout << rawPressure << endl;
     cout << "Pressure PSI: " << PressureSensor::ConvertToPsi(rawPressure) << endl;
     cout << "Water pressure present: " << nozzle.IsWaterPressurePresent() << endl;
+    cout << "Min raw pressure: " << nozzle.GetPressureSensor().GetMinRawPressure() << endl;
 
     return 0;
 }
@@ -96,6 +97,7 @@ int main(int argc, char *argv[])
     int rawPressure = nozzle.GetPressure();
     cout << rawPressure << endl;
     cout << "Pressure PSI: " << PressureSensor::ConvertToPsi(rawPressure) << endl;
+    cout << "Min raw pressure: " << nozzle.GetPressureSensor().GetMinRawPressure() << endl;
 
     if (argc < 4)
     {

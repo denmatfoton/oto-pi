@@ -32,10 +32,10 @@ public:
     std::future<I2cStatus> NotifyWhenPressure(std::function<I2cStatus(int)>&& isExpectedValue,
         std::function<void(I2cStatus)>&& completionAction);
 
-    int GetLastRawPressure() { return m_lastRawValue.load(); }
-    int GetMinRawPressure() { return m_minRawValue.load(); }
-    uint32_t GetLastMeasurmentTimeMs() { return m_lastMeasurmentTimeMs.load(); }
-    bool IsMeasurmentStale();
+    int GetLastRawPressure() const { return m_lastRawValue.load(); }
+    int GetMinRawPressure() const { return m_minRawValue.load(); }
+    uint32_t GetLastMeasurementTimeMs() const { return m_lastMeasurementTimeMs.load(); }
+    bool IsMeasurementStale() const;
     int GetRawPressureFetchIfStale();
 
     static float ConvertToPsi(int rawValue)
@@ -50,5 +50,5 @@ private:
     I2cAccessor& m_i2cAccessor;
     std::atomic_int32_t m_lastRawValue = 0;
     std::atomic_int32_t m_minRawValue = INT_MAX / 2;
-    std::atomic_uint32_t m_lastMeasurmentTimeMs = 0;
+    std::atomic_uint32_t m_lastMeasurementTimeMs = 0;
 };

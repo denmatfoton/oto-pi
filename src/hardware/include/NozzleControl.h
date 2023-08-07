@@ -42,6 +42,8 @@ public:
     std::future<I2cStatus> CloseValve();
 
     void TurnValve(MotorDirection direction, std::chrono::milliseconds duration, int dutyPercent);
+    const PressureSensor& GetPressureSensor() const { return m_pressureSensor; }
+    const MagnetSensor& GetMagnetSensor() const { return m_magnetSensor; }
 
 private:
     void HandleValveState(I2cStatus status, MotorDirection direction);

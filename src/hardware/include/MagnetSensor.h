@@ -57,8 +57,8 @@ public:
         std::function<void(I2cStatus)>&& completionAction);
     
     int GetLastRawAngle() { return m_lastRawAngle.load(); }
-    uint32_t GetLastMeasurmentTimeMs() { return m_lastMeasurmentTimeMs.load(); }
-    bool IsMeasurmentStale();
+    uint32_t GetLastMeasurementTimeMs() { returnm_lastMeasurementTimeMss.load(); }
+    bool IsMeasurementStale();
     int GetRawAngleFetchIfStale();
 
 private:
@@ -66,5 +66,5 @@ private:
 
     I2cAccessor& m_i2cAccessor;
     std::atomic_int32_t m_lastRawAngle = 0;
-    std::atomic_uint32_t m_lastMeasurmentTimeMs = 0;
+    std::atomic_uint32_t m_lastMeasurementTimeMs = 0;
 };

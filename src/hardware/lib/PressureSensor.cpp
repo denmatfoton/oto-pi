@@ -71,7 +71,7 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
 
         m_lastRawValue.store(reading - c_outputMin);
         m_minRawValue.store(min(m_minRawValue.load(), reading));
-        m_lastMeasurmentTimeMs.store(TimeSinceEpochMs());
+        m_lastMeasurementTimeMs.store(TimeSinceEpochMs());
 
         return I2cStatus::Completed;
     });
@@ -107,18 +107,18 @@ std::future<I2cStatus> PressureSensor::NotifyWhenPressure(std::function<I2cStatu
     return measurementFuture;
 }
 
-bool PressureSensor::IsMeasurmentStale()
+bool PressureSensor::IsMeasurementStale() const
 {
-    static constexpr uint32_t staleMeasurmentThresholdMs = 50;
-    return TimeSinceEpochMs() - GetLastMeasurmentTimeMs() > staleMeasurmentThresholdMs;
+    static constexpr uint32_t staleMeasurementThresholdMs = 50;
+    return TimeSinceEpochMs() - GetLastMeasurementTimeMs() > staleMeasurementThresholdMs;
 }
 
 int PressureSensor::GetRawPressureFetchIfStale()
 {
-    if (IsMeasurmentStale())
+    if (IsMeasurementStale())
     {
         auto measurementFuture = ReadPressureAsync();
         measurementFuture.wait();
     }
-    return IsMeasurmentStale() ? -1 : GetLastRawPressure();
+    return IsMeasurementStale() ? -1 : GetLastRawPressure();
 }
