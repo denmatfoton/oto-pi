@@ -6,11 +6,11 @@
 #include <condition_variable>
 #include <functional>
 #include <future>
+#include <list>
 #include <mutex>
 #include <queue>
 #include <optional>
 #include <thread>
-#include <unordered_map>
 
 /// @brief 
 /// @param int: handle to I2C file.
@@ -114,11 +114,11 @@ private:
 
     struct Task
     {
-        Task(TimePoint start, int id) :
-            startTime(start), deviceAddress(devAddress) {}
+        Task(TimePoint start, TransactionIterator it) :
+            startTime(start), itTransaction(it) {}
 
         TimePoint startTime;
-        int transactionId;
+        TransactionIterator itTransaction;
     };
 
     struct CompareTasks {
@@ -127,10 +127,9 @@ private:
         }
     };
 
-    std::priority_queue<Task, std::vector<Task>, CompareTasks> m_tasksQueue{CompareTasks()};
-    std::unordered_map<int, I2cTransaction> m_transactionsMap;
+    std::priority_queue<Task, std::vector<Task>, CompareTasks> m_tasks{CompareTasks()};
+    std::list<I2cTransaction> m_transactions;
 
-    int m_nextTransactionId = 0;
     bool m_quit = false;
     std::mutex m_mutex;
     std::condition_variable m_cv;

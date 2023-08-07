@@ -45,22 +45,21 @@ int I2cAccessor::Init(const char* i2cFileName)
     return 0;
 }
 
-void I2cAccessor::PushTransaction(I2cTransaction&& transaction)
+void I2cAccessor::PushTransaction(I2cTransaction&& newTransaction)
 {
     {
         unique_lock lk(m_mutex);
-        for (auto it : m_transactionsMap) // Allow single transaction per device
+        for (auto& transaction : m_transactions)
         {
-            // Abort all old transactions
-            if (it.second.m_deviceAddress == transaction.m_deviceAddress)
+            // Abort all old transactions with same device address
+            if (transaction.m_deviceAddress == newTransaction.m_deviceAddress)
             {
-                it.second.m_isAborted = true;
+                transaction.m_isAborted = true;
             }
         }
-        m_transactionsMap.emplace(m_nextTransactionId, move(transaction));
+        m_transactions.emplace_front(move(newTransaction));
         auto curTime = chrono::steady_clock::now();
-        m_tasksQueue.emplace(curTime, m_nextTransactionId);
-        ++m_nextTransactionId;
+        m_tasks.emplace(curTime, m_transactions.begin());
     }
     m_cv.notify_one();
 }
@@ -72,41 +71,40 @@ void I2cAccessor::LoopFunc()
         unique_lock lk(m_mutex);
         if (m_quit) break;
 
-        if (m_tasksQueue.empty())
+        if (m_tasks.empty())
         {
             m_cv.wait(lk);
         }
         else
         {
             auto curTime = chrono::steady_clock::now();
-            if (curTime < m_tasksQueue.top().startTime)
+            if (curTime < m_tasks.top().startTime)
             {
-                m_cv.wait_until(lk, m_tasksQueue.top().startTime);
+                m_cv.wait_until(lk, m_tasks.top().startTime);
             }
         }
         
         if (m_quit) break;
-        if (m_tasksQueue.empty()) continue;
+        if (m_tasks.empty()) continue;
         auto curTime = chrono::steady_clock::now();
-        if (curTime < m_tasksQueue.top().startTime) continue;
+        if (curTime < m_tasks.top().startTime) continue;
 
-        auto curTask = move(m_tasksQueue.top());
-        m_tasksQueue.pop();
+        auto curTask = move(m_tasks.top());
+        m_tasks.pop();
         
         lk.unlock();
 
-        I2cTransaction& curTransaction = m_transactionsMap[curTask.transactionId];
-        TimePoint nextTime = curTransaction.RunCommand();
+        TimePoint nextTime = curTask.itTransaction->RunCommand();
 
         lk.lock();
 
-        if (curTransaction.IsCompleted())
+        if (curTask.itTransaction->IsCompleted())
         {
-            m_transactionsMap.erase(curTask.transactionId);
+            m_transactions.erase(curTask.itTransaction);
         }
         else
         {
-            m_tasksQueue.emplace(nextTime, curTask.transactionId);
+            m_tasks.emplace(nextTime, curTask.itTransaction);
         }
     }
 }
