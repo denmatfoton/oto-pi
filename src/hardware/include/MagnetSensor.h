@@ -56,9 +56,9 @@ public:
     std::future<I2cStatus> NotifyWhenAngle(std::function<I2cStatus(int)>&& isExpectedValue,
         std::function<void(I2cStatus)>&& completionAction);
     
-    int GetLastRawAngle() { return m_lastRawAngle.load(); }
-    uint32_t GetLastMeasurementTimeMs() { returnm_lastMeasurementTimeMss.load(); }
-    bool IsMeasurementStale();
+    int GetLastRawAngle() const { return m_lastRawAngle.load(); }
+    uint32_t GetLastMeasurementTimeMs() const { return m_lastMeasurementTimeMs.load(); }
+    bool IsMeasurementStale() const;
     int GetRawAngleFetchIfStale();
 
 private:

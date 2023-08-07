@@ -136,10 +136,10 @@ std::future<I2cStatus> MagnetSensor::NotifyWhenAngle(std::function<I2cStatus(int
     return measurementFuture;
 }
 
-bool MagnetSensor::IsMeasurementStale()
+bool MagnetSensor::IsMeasurementStale() const
 {
-    static constexpr uint32_t staleMeasurmentThresholdMs = 50;
-    return TimeSinceEpochMs() - GetLastMeasurmentTimeMs() > staleMeasurmentThresholdMs;
+    static constexpr uint32_t staleMeasurementThresholdMs = 50;
+    return TimeSinceEpochMs() - GetLastMeasurementTimeMs() > staleMeasurementThresholdMs;
 }
 
 int MagnetSensor::GetRawAngleFetchIfStale()
