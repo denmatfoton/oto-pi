@@ -72,6 +72,8 @@ int main(int argc, char *argv[])
 {
     NozzleControl nozzle;
     IfFailRet(nozzle.Init());
+    
+    cout << "Min raw pressure: " << nozzle.GetPressureSensor().GetMinRawPressure() << endl;
 
     auto positionFuture = nozzle.FetchPosition();
     auto pressureFuture = nozzle.FetchPressure();
