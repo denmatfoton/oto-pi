@@ -36,6 +36,7 @@ public:
     int GetPressure() { return m_pressureSensor.GetLastRawPressure(); }
     int GetPressureFetchIfStale() { return m_pressureSensor.GetRawPressureFetchIfStale(); }
 
+    void SetCloseValveOnExit(bool value) { m_closeValveOnExit = value; }
     bool IsWaterPressurePresent();
     std::future<I2cStatus> OpenValve();
     std::future<I2cStatus> CloseValve();
@@ -48,6 +49,7 @@ private:
         return curPressure > m_pressureSensor.GetMinRawPressure() + c_waterPressureThreshold;
     }
 
+    bool m_closeValveOnExit = true;
     MotorControl m_motorNozzle;
     MotorControl m_motorValve;
     std::unique_ptr<I2cAccessor> m_spI2cAccessor;

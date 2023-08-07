@@ -26,7 +26,10 @@ NozzleControl::NozzleControl() :
 
 NozzleControl::~NozzleControl()
 {
-    CloseValve();
+    if (m_closeValveOnExit)
+    {
+        ßCloseValve();
+    }
 }
 
 int NozzleControl::Init()

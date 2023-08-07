@@ -8,6 +8,7 @@ int RotateValve(NozzleControl& nozzle, MotorDirection direction, int value, int 
 {
     chrono::milliseconds duration(value);
 
+    nozzle.SetCloseValveOnExit(false);
     nozzle.TurnValve(direction, duration, duty);
 
     auto pressureFuture = nozzle.FetchPressure();
@@ -23,6 +24,7 @@ int RotateValve(NozzleControl& nozzle, MotorDirection direction, int value, int 
     int rawPressure = nozzle.GetPressure();
     cout << rawPressure << endl;
     cout << "Pressure PSI: " << PressureSensor::ConvertToPsi(rawPressure) << endl;
+    cout << "Water pressure present: " << nozzle.IsWaterPressurePresent() << endl;
 
     return 0;
 }
