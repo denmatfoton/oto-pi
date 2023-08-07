@@ -40,7 +40,6 @@ int NozzleControl::Init()
 
 std::future<I2cStatus> NozzleControl::RotateTo(MotorDirection direction, int targetAngle, int dutyPercent)
 {
-    m_lastTargetAngle = targetAngle;
     int startAngle = m_magnetSensor.GetRawAngleFetchIfStale();
 
     int distance = 0;
@@ -122,7 +121,6 @@ std::future<I2cStatus> NozzleControl::RotateDiff(int diffAngle, int dutyPercent)
 
 std::future<I2cStatus> NozzleControl::SetPressure(int targetPressure, int dutyPercent)
 {
-    m_lastTargetPressure = targetPressure;
     int startPressure = m_pressureSensor.GetRawPressureFetchIfStale();
 
     int diff = targetPressure - startPressure;

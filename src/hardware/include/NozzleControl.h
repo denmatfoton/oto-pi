@@ -16,7 +16,7 @@ private:
 
     // Custom definitions
     static constexpr int c_waterPressureThreshold = 3'000;
-    static constexpr int c_valveOpeningTimeoutMs = 1000;
+    static constexpr int c_valveOpeningTimeoutMs = 3'000;
 
 public:
     NozzleControl();
