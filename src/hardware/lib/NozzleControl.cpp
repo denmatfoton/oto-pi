@@ -28,7 +28,7 @@ NozzleControl::~NozzleControl()
 {
     if (m_closeValveOnExit)
     {
-        ßCloseValve();
+        CloseValve();
     }
 }
 
