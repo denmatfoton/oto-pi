@@ -113,7 +113,7 @@ TimePoint I2cTransaction::RunCommand()
 {
     if (m_isAborted)
     {
-        Complete(I2cStatus::Abort);
+        Complete(HwResult::Abort);
         return c_errorTime;
     }
 
@@ -124,29 +124,29 @@ TimePoint I2cTransaction::RunCommand()
 
     if (ioctl(m_i2cHandle, I2C_SLAVE, m_deviceAddress) < 0)
     {
-        Complete(I2cStatus::CommFailure);
+        Complete(HwResult::CommFailure);
         return c_errorTime;
     }
 
     std::chrono::milliseconds delayNextCommand = 0ms;
-    I2cStatus status = (*m_commands[m_curCommand])(m_i2cHandle, delayNextCommand);
+    HwResult status = (*m_commands[m_curCommand])(m_i2cHandle, delayNextCommand);
     
     switch (status)
     {
-    case I2cStatus::Next:
+    case HwResult::Next:
         if (++m_curCommand < m_commandsCount)
         {
             break;
         }
         [[fallthrough]];
-    case I2cStatus::Completed:
+    case HwResult::Completed:
         if (!m_optIsRecursionCompleted.has_value())
         {
-            Complete(I2cStatus::Success);
+            Complete(HwResult::Success);
             break;
         }
         status = (*m_optIsRecursionCompleted)();
-        if (status == I2cStatus::Repeat)
+        if (status == HwResult::Repeat)
         {
             m_curCommand = 0;
             delayNextCommand = m_delayNextIteration;
@@ -156,9 +156,9 @@ TimePoint I2cTransaction::RunCommand()
             Complete(status);
         }
         break;
-    case I2cStatus::Repeat:
+    case HwResult::Repeat:
         break;
-    case I2cStatus::CommFailure:
+    case HwResult::CommFailure:
     default:
         Complete(status);
         return c_errorTime;
@@ -168,7 +168,7 @@ TimePoint I2cTransaction::RunCommand()
     return curTime + delayNextCommand;
 }
 
-void I2cTransaction::Complete(I2cStatus status)
+void I2cTransaction::Complete(HwResult status)
 {
     m_curCommand = m_commandsCount;
     

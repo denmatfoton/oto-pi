@@ -15,17 +15,17 @@ int RotateValve(NozzleControl& nozzle, MotorDirection direction, int value, int 
     
     cout << "Current raw pressure: ";
     pressureFuture.wait();
-    if (pressureFuture.get() != I2cStatus::Success)
+    if (pressureFuture.get() != HwResult::Success)
     {
         cerr << "Fetch pressure failed" << endl;
         return -1;
     }
 
-    int rawPressure = nozzle.GetPressure();
-    cout << rawPressure << endl;
-    cout << "Pressure PSI: " << PressureSensor::ConvertToPsi(rawPressure) << endl;
+    int pressure = nozzle.GetPressure();
+    cout << pressure << endl;
+    cout << "Pressure PSI: " << PressureSensor::ConvertToPsi(pressure) << endl;
     cout << "Water pressure present: " << nozzle.IsWaterPressurePresent() << endl;
-    cout << "Min raw pressure: " << nozzle.GetPressureSensor().GetMinRawPressure() << endl;
+    cout << "Min pressure: " << nozzle.GetPressureSensor().GetMinPressure() << endl;
 
     return 0;
 }
@@ -39,12 +39,12 @@ int RotateNozzle(NozzleControl& nozzle, MotorDirection direction, int value, int
         return -1;
     }
 
-    auto rotateFuture = nozzle.RotateTo(direction, targetAngle, duty);
+    auto rotateFuture = nozzle.RotateToAsync(direction, targetAngle, duty);
 
     rotateFuture.wait();
-    if (rotateFuture.get() != I2cStatus::Success)
+    if (rotateFuture.get() != HwResult::Success)
     {
-        cerr << "RotateTo failed" << endl;
+        cerr << "RotateToAsync failed" << endl;
         return -1;
     }
 
@@ -57,7 +57,7 @@ int RotateNozzle(NozzleControl& nozzle, MotorDirection direction, int value, int
 
     cout << "Refresh position: ";
     positionFuture.wait();
-    if (positionFuture.get() != I2cStatus::Success)
+    if (positionFuture.get() != HwResult::Success)
     {
         cerr << "Fetch position failed" << endl;
         return -1;
@@ -73,14 +73,14 @@ int main(int argc, char *argv[])
     NozzleControl nozzle;
     IfFailRet(nozzle.Init());
     
-    cout << "Min raw pressure: " << nozzle.GetPressureSensor().GetMinRawPressure() << endl;
+    cout << "Min pressure: " << nozzle.GetPressureSensor().GetMinPressure() << endl;
 
     auto positionFuture = nozzle.FetchPosition();
     auto pressureFuture = nozzle.FetchPressure();
 
     cout << "Current position: ";
     positionFuture.wait();
-    if (positionFuture.get() != I2cStatus::Success)
+    if (positionFuture.get() != HwResult::Success)
     {
         cerr << "Fetch position failed" << endl;
         return -1;
@@ -90,16 +90,16 @@ int main(int argc, char *argv[])
     
     cout << "Current raw pressure: ";
     pressureFuture.wait();
-    if (pressureFuture.get() != I2cStatus::Success)
+    if (pressureFuture.get() != HwResult::Success)
     {
         cerr << "Fetch pressure failed" << endl;
         return -1;
     }
 
-    int rawPressure = nozzle.GetPressure();
-    cout << rawPressure << endl;
-    cout << "Pressure PSI: " << PressureSensor::ConvertToPsi(rawPressure) << endl;
-    cout << "Min raw pressure: " << nozzle.GetPressureSensor().GetMinRawPressure() << endl;
+    int pressure = nozzle.GetPressure();
+    cout << pressure << endl;
+    cout << "Pressure PSI: " << PressureSensor::ConvertToPsi(pressure) << endl;
+    cout << "Min pressure: " << nozzle.GetPressureSensor().GetMinPressure() << endl;
 
     if (argc < 4)
     {

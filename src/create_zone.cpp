@@ -1,6 +1,8 @@
-#include "CursesWrapper.h"
-#include "NozzleControl.h"
-#include "Sprinkler.h"
+#include <CursesWrapper.h>
+#include <Logger.h>
+#include <MathUtils.h>
+#include <NozzleControl.h>
+#include <Sprinkler.h>
 
 #include <iostream>
 #include <thread>
@@ -24,40 +26,58 @@ Irrigation::ZoneType GetZoneType(char c)
 int ProcessInput(Irrigation::Sprinkler& sprinkler, const char* zoneFileName, string& message)
 {
     int res = 0;
-    NozzleControl& nozzle = sprinkler.GetNozzleControl();
+    NozzleControlCalibrated& nozzle = sprinkler.GetNozzleControl();
 
     static constexpr int angleIncr = 10;
-    static constexpr int pressureIncr = 20000;
+    //static constexpr int pressureIncr = 20000;
     static constexpr int defaultDuty = 100;
 
     switch (getch())
     {
         case KEY_UP:
-            nozzle.SetPressureDiff(pressureIncr, defaultDuty);
+            nozzle.TurnValve(MotorDirection::Open, chrono::milliseconds(20), defaultDuty);
             break;
 
         case KEY_DOWN:
-            nozzle.SetPressureDiff(-pressureIncr, defaultDuty);
+            nozzle.TurnValve(MotorDirection::Close, chrono::milliseconds(20), defaultDuty);
             break;
 
         case KEY_RIGHT:
-            nozzle.RotateDiff(angleIncr, defaultDuty);
+            nozzle.RotateDiffDurationBased(angleIncr);
             break;
 
         case KEY_LEFT:
-            nozzle.RotateDiff(-angleIncr, defaultDuty);
+            nozzle.RotateDiffDurationBased(-angleIncr);
             break;
+
+        case 'a':
+        {
+            int angle = 10;
+            cin >> angle;
+            nozzle.RotateDiffDurationBased(angle);
+            break;
+        }
 
         case 'q':
             res = 1;
             break;
 
         case 'o':
-            nozzle.OpenValve();
+            nozzle.OpenValveAsync();
             break;
 
         case 'c':
-            nozzle.CloseValve();
+            nozzle.CloseValveAsync();
+            break;
+
+        case 'n':
+            nozzle.CalibrateNozzle(5000, 2'000'000, 1.3);
+            message = "Nozzle calibration completed";
+            break;
+
+        case 'v':
+            nozzle.CalibrateValve(20);
+            message = "Nozzle calibration completed";
             break;
 
         case 'p':
@@ -104,6 +124,8 @@ int main(int argc, char *argv[])
 
     Irrigation::Sprinkler sprinkler;
     IfFailRet(sprinkler.Init());
+    Logger logger("create_zone.log");
+    sprinkler.SetLogger(&logger);
 
     sprinkler.StartZoneRecording(zoneType);
     NozzleControl& nozzle = sprinkler.GetNozzleControl();
@@ -117,12 +139,17 @@ int main(int argc, char *argv[])
 
         string message;
 
+        SequenceTrendAnalyzer<16> pressureAnalyzer;
+
         while (true)
         {
             clear();
 
             mvprintw(0, 0, "Nozzle position: %d", nozzle.GetPositionFetchIfStale());
-            mvprintw(1, 0, "Nozzle pressure: %d", nozzle.GetPressureFetchIfStale());
+            int curPressure = nozzle.GetPressureFetchIfStale();
+            pressureAnalyzer.Push(curPressure);
+            mvprintw(1, 0, "Nozzle pressure: %d", curPressure);
+            mvprintw(2, 0, "Nozzle avg pressure: %d", pressureAnalyzer.AvgValue());
             
             if (sprinkler.RecordedZone() != nullptr)
             {
@@ -137,7 +164,7 @@ int main(int argc, char *argv[])
                 break;
             }
 	    
-	    this_thread::sleep_for(40ms);
+	        this_thread::sleep_for(100ms);
         }
     }
 

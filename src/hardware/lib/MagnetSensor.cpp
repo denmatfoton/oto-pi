@@ -94,31 +94,31 @@ void MagnetSensor::FillI2cTransactionReadAngle(I2cTransaction& transaction)
         if (angle < 0)
         {
             cerr << "ReadAngle: read angle failed. status: " << angle << endl;
-            return I2cStatus::CommFailure;
+            return HwResult::CommFailure;
         }
 
         angle = SwapBytesWord(angle);
         m_lastRawAngle.store(angle);
         m_lastMeasurementTimeMs.store(TimeSinceEpochMs());
         
-        return I2cStatus::Completed;
+        return HwResult::Completed;
     });
 }
 
-std::future<I2cStatus> MagnetSensor::ReadAngleAsync()
+std::future<HwResult> MagnetSensor::ReadAngleAsync()
 {
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
     
     FillI2cTransactionReadAngle(transaction);
 
-    future<I2cStatus> measurementFuture = transaction.GetFuture();
+    future<HwResult> measurementFuture = transaction.GetFuture();
     m_i2cAccessor.PushTransaction(move(transaction));
 
     return measurementFuture;
 }
 
-std::future<I2cStatus> MagnetSensor::NotifyWhenAngle(std::function<I2cStatus(int)>&& isExpectedValue,
-        std::function<void(I2cStatus)>&& completionAction)
+std::future<HwResult> MagnetSensor::NotifyWhenAngle(std::function<HwResult(int)>&& isExpectedValue,
+        std::function<void(HwResult)>&& completionAction)
 {
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
     
@@ -130,7 +130,7 @@ std::future<I2cStatus> MagnetSensor::NotifyWhenAngle(std::function<I2cStatus(int
 
     transaction.SetCompletionAction(move(completionAction));
 
-    future<I2cStatus> measurementFuture = transaction.GetFuture();
+    future<HwResult> measurementFuture = transaction.GetFuture();
     m_i2cAccessor.PushTransaction(move(transaction));
 
     return measurementFuture;

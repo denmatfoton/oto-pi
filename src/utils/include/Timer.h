@@ -40,16 +40,16 @@ inline struct timespec AddMillisecondsToCurrentTime(uint32_t ms_num)
 #include <functional>
 
 /**
-   * @class Timer system_utils.h
-   * @brief It is a wrapper around Linux system timer functions.
-   */
+ * @class Timer system_utils.h
+ * @brief It is a wrapper around Linux system timer functions.
+ */
 class Timer
 {
 public:
    Timer();
    /**
-      * @param callback Function to be called after timer expiration.
-      */
+    * @param callback Function to be called after timer expiration.
+    */
    Timer(std::function<void()> callback);
    Timer(const Timer& other) = delete;
    Timer(Timer&& other) = delete;
@@ -58,18 +58,20 @@ public:
    void SetCallback(std::function<void()> callback) {
       callback_ = std::move(callback);
    }
+   
    /**
-      * @brief Arms the timer.
-      * @param initial_expiration_ms Amount of time in milliseconds until the first timer expiration.
-      * @param period_ms If not 0, timer will be automatically restarted with given period.
-      * @return true on success, else false.
-      * @note If the timer was already armed, then the previous settings are overwritten.
-      */
+    * @brief Arms the timer.
+    * @param initial_expiration_ms Amount of time in milliseconds until the first timer expiration.
+    * @param period_ms If not 0, timer will be automatically restarted with given period.
+    * @return true on success, else false.
+    * @note If the timer was already armed, then the previous settings are overwritten.
+    */
    bool Start(uint32_t initial_expiration_ms, uint32_t period_ms = 0);
+
    /**
-      * @brief Stops timer.
-      * @return true on success, else false.
-      */
+    * @brief Stops timer.
+    * @return true on success, else false.
+    */
    bool Stop();
 
 private:

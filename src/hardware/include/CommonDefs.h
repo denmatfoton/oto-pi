@@ -4,10 +4,11 @@
 
 using TimePoint = std::chrono::time_point<std::chrono::steady_clock>;
 
-enum class I2cStatus : int
+enum class HwResult : int
 {
-    // For I2cAccessor
     Success,
+
+    // For I2cAccessor
     Completed,
     Next,
     Repeat,
@@ -18,6 +19,7 @@ enum class I2cStatus : int
     UnexpectedValue,
     MaxValueReached,
     Timeout,
+    NoWaterPressure,
 };
 
 constexpr const char c_i2cFileName[] = "/dev/i2c-1";
@@ -28,6 +30,13 @@ constexpr const char c_i2cFileName[] = "/dev/i2c-1";
 #define IfFailRet(hr_) Statement( \
 	const auto hrLocal_ = (hr_); \
 	if (FAILED(hrLocal_)) \
+	{ \
+		return hrLocal_; \
+	})
+
+#define IfFailRetResult(hr_) Statement( \
+	const auto hrLocal_ = (hr_); \
+	if (hrLocal_ != HwResult::Success) \
 	{ \
 		return hrLocal_; \
 	})

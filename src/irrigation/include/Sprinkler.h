@@ -5,7 +5,8 @@
 #include <future>
 #include <memory>
 
-class NozzleControl;
+class Logger;
+class NozzleControlCalibrated;
 
 namespace Irrigation {
 
@@ -15,6 +16,9 @@ public:
     Sprinkler() = default;
 
     int Init();
+
+    void SetLogger(Logger* pLogger);
+    NozzleControlCalibrated& GetNozzleControl() { return *m_spNozzle; }
     
     std::future<void> ApplyWaterAsync(const Zone& zone, float density);
     void ApplyWater(const Zone& zone, float density);
@@ -25,15 +29,15 @@ public:
     const Zone* RecordedZone() const { return m_spNewZone.get(); }
     std::unique_ptr<Zone>&& TakeRecordedZone() { return std::move(m_spNewZone); }
 
-    NozzleControl& GetNozzleControl() { return *m_spNozzle; }
-
 private:
     void ApplyArea(const std::vector<Coord>& points, float density);
     void ApplyLine(const std::vector<Coord>& points, float density);
     void ApplyPoints(const std::vector<Coord>& points, float density);
 
-    std::unique_ptr<NozzleControl> m_spNozzle;
+    std::unique_ptr<NozzleControlCalibrated> m_spNozzle;
     std::unique_ptr<Zone> m_spNewZone;
+    
+    Logger* m_pLogger = nullptr;
 };
 
 }

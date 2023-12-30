@@ -9,8 +9,14 @@ using namespace std;
 namespace Irrigation {
 
 int Sprinkler::Init() {
-    m_spNozzle.reset(new NozzleControl());
+    m_spNozzle.reset(new NozzleControlCalibrated());
     return m_spNozzle->Init();
+}
+
+void Sprinkler::SetLogger(Logger* pLogger)
+{
+    m_pLogger = pLogger;
+    m_spNozzle->SetLogger(pLogger);
 }
 
 future<void> Sprinkler::ApplyWaterAsync(const Zone& zone, float density)

@@ -9,7 +9,7 @@
 class I2cAccessor;
 class I2cTransaction;
 
-enum class I2cStatus : int;
+enum class HwResult : int;
 
 class PressureSensor
 {
@@ -22,26 +22,34 @@ class PressureSensor
     static constexpr int c_minPsi = 0;
     static constexpr int c_outputMax = 0xE66666;
     static constexpr int c_outputMin = 0x19999A;
+    static constexpr int c_truncateShift = 12;
 
 public:
-    static constexpr int c_approximateAmbientPressure = 7'740'000;
-
     PressureSensor(I2cAccessor& i2cAccessor) : m_i2cAccessor(i2cAccessor) {}
 
-    std::future<I2cStatus> ReadPressureAsync();
-    std::future<I2cStatus> NotifyWhenPressure(std::function<I2cStatus(int)>&& isExpectedValue,
-        std::function<void(I2cStatus)>&& completionAction);
+    std::future<HwResult> ReadPressureAsync();
+    std::future<HwResult> NotifyWhenPressure(std::function<HwResult(int)>&& isExpectedValue,
+        std::function<void(HwResult)>&& completionAction);
 
     int GetLastRawPressure() const { return m_lastRawValue.load(); }
+    int GetLastPressure() const { return TruncateNoise(GetLastRawPressure()); }
     int GetMinRawPressure() const { return m_minRawValue.load(); }
+    int GetMinPressure() const { return TruncateNoise(GetMinRawPressure()); }
     uint32_t GetLastMeasurementTimeMs() const { return m_lastMeasurementTimeMs.load(); }
     bool IsMeasurementStale() const;
-    int GetRawPressureFetchIfStale();
+    int GetPressureFetchIfStale();
 
-    static float ConvertToPsi(int rawValue)
+    static int TruncateNoise(int rawValue) { return rawValue >> c_truncateShift; }
+
+    static float ConvertRawToPsi(int rawValue)
     {
         return static_cast<float>(rawValue * (c_maxPsi - c_minPsi)) 
             / static_cast<float>(c_outputMax - c_outputMin) + static_cast<float>(c_minPsi);
+    }
+
+    static float ConvertToPsi(int value)
+    {
+        return ConvertRawToPsi(value << c_truncateShift);
     }
 
 private:

@@ -2,6 +2,8 @@
 
 #include "CommonDefs.h"
 
+#include <thread>
+
 enum class MotorDirection : int
 {
     Close = 0,
@@ -14,7 +16,7 @@ class MotorControl
 {
 private:
 
-    static constexpr int c_pwmFreq = 1000;
+    static constexpr int c_pwmFreq = 10000;
 
 public:
     MotorControl(int pwmPin, int drainPin) :
@@ -23,6 +25,13 @@ public:
 
     int Init();
     void Run(MotorDirection direction, int dutyPercent);
+    template <class _Rep, class _Period>
+    void RunDuration(MotorDirection direction, const std::chrono::duration<_Rep, _Period>& duration, int dutyPercent)
+    {
+        Run(direction, dutyPercent);
+        std::this_thread::sleep_for(duration);
+        Stop();
+    }
     void Stop();
     TimePoint RunStartedAt() { return m_runStart; }
     void RestoreInitialPosition();

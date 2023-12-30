@@ -10,7 +10,7 @@
 class I2cAccessor;
 class I2cTransaction;
 
-enum class I2cStatus : int;
+enum class HwResult : int;
 
 union ConfigReg
 {
@@ -52,9 +52,9 @@ public:
     void ReadConfig();
     void ReadStatus();
 
-    std::future<I2cStatus> ReadAngleAsync();
-    std::future<I2cStatus> NotifyWhenAngle(std::function<I2cStatus(int)>&& isExpectedValue,
-        std::function<void(I2cStatus)>&& completionAction);
+    std::future<HwResult> ReadAngleAsync();
+    std::future<HwResult> NotifyWhenAngle(std::function<HwResult(int)>&& isExpectedValue,
+        std::function<void(HwResult)>&& completionAction);
     
     int GetLastRawAngle() const { return m_lastRawAngle.load(); }
     uint32_t GetLastMeasurementTimeMs() const { return m_lastMeasurementTimeMs.load(); }

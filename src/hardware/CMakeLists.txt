@@ -7,4 +7,4 @@ set(HARDWARE_SRCS
 )
 
 add_library(hardware STATIC ${HARDWARE_SRCS})
-target_include_directories(hardware PUBLIC include)
+target_include_directories(hardware PUBLIC include ../utils/include)

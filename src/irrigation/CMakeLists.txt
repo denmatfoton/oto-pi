@@ -4,7 +4,9 @@ set(IRRIGATION_SRCS
 )
 
 add_library(irrigation STATIC ${IRRIGATION_SRCS})
-target_include_directories(irrigation PUBLIC include ../hardware/include)
+target_include_directories(irrigation PUBLIC include 
+../hardware/include
+)
 
 # Tests
 enable_testing()

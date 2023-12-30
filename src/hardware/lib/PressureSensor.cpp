@@ -21,10 +21,10 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         if (bytesWritten != sizeof(requestMeasurementCmd))
         {
             cerr << "ReadRawPressure: request measurement failed. bytesWritten: " << bytesWritten << endl;
-            return I2cStatus::CommFailure;
+            return HwResult::CommFailure;
         }
         delayNextCommand = 3ms;
-        return I2cStatus::Next;
+        return HwResult::Next;
     });
 
     transaction.AddCommand([] (int i2cHandle, std::chrono::milliseconds& delayNextCommand) {
@@ -32,17 +32,17 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         if (status < 0)
         {
             cerr << "ReadRawPressure: read status failed. status: " << status << endl;
-            return I2cStatus::CommFailure;
+            return HwResult::CommFailure;
         }
         
         if ((status & c_busyFlag) == 0 || (status == 0xFF))
         {
-            return I2cStatus::Next;
+            return HwResult::Next;
         }
         else
         {
             delayNextCommand = 1ms;
-            return I2cStatus::Repeat;
+            return HwResult::Repeat;
         }
     });
 
@@ -52,14 +52,14 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         if (bytesRead != sizeof(readBuff))
         {
             cerr << "ReadRawPressure: read measurement failed. bytesRead: " << bytesRead << endl;
-            return I2cStatus::CommFailure;
+            return HwResult::CommFailure;
         }
 
         int status = readBuff[0];
         if ((status & c_integrityFlag) || (status & c_mathSatFlag))
         {
             cerr << "ReadRawPressure: read measurement failed. status: " << std::hex << status << std::dec << endl;
-            return I2cStatus::CommFailure;
+            return HwResult::CommFailure;
         }
 
         int reading = 0;
@@ -74,35 +74,35 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         m_minRawValue.store(min(m_minRawValue.load(), reading));
         m_lastMeasurementTimeMs.store(TimeSinceEpochMs());
 
-        return I2cStatus::Completed;
+        return HwResult::Completed;
     });
 }
 
-std::future<I2cStatus> PressureSensor::ReadPressureAsync()
+std::future<HwResult> PressureSensor::ReadPressureAsync()
 {
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
     FillI2cTransaction(transaction);
 
-    future<I2cStatus> measurementFuture = transaction.GetFuture();
+    future<HwResult> measurementFuture = transaction.GetFuture();
     m_i2cAccessor.PushTransaction(move(transaction));
 
     return measurementFuture;
 }
 
-std::future<I2cStatus> PressureSensor::NotifyWhenPressure(std::function<I2cStatus(int)>&& isExpectedValue,
-        std::function<void(I2cStatus)>&& completionAction)
+std::future<HwResult> PressureSensor::NotifyWhenPressure(std::function<HwResult(int)>&& isExpectedValue,
+        std::function<void(HwResult)>&& completionAction)
 {
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
     
     FillI2cTransaction(transaction);
 
     transaction.MakeRecursive([this, checkPressure = move(isExpectedValue)] {
-        return checkPressure(GetLastRawPressure());
+        return checkPressure(GetLastPressure());
     }, 2ms);
 
     transaction.SetCompletionAction(move(completionAction));
 
-    future<I2cStatus> measurementFuture = transaction.GetFuture();
+    future<HwResult> measurementFuture = transaction.GetFuture();
     m_i2cAccessor.PushTransaction(move(transaction));
 
     return measurementFuture;
@@ -114,12 +114,12 @@ bool PressureSensor::IsMeasurementStale() const
     return TimeSinceEpochMs() - GetLastMeasurementTimeMs() > staleMeasurementThresholdMs;
 }
 
-int PressureSensor::GetRawPressureFetchIfStale()
+int PressureSensor::GetPressureFetchIfStale()
 {
     if (IsMeasurementStale())
     {
         auto measurementFuture = ReadPressureAsync();
         measurementFuture.wait();
     }
-    return IsMeasurementStale() ? -1 : GetLastRawPressure();
+    return IsMeasurementStale() ? -1 : GetLastPressure();
 }

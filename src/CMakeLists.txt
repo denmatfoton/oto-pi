@@ -12,8 +12,9 @@ set(MOTOR_SRCS
 
 add_subdirectory("hardware")
 add_subdirectory("irrigation")
+add_subdirectory("utils")
 
-set(COMMON_LIBS pthread i2c pigpio rt hardware)
+set(COMMON_LIBS pthread i2c pigpio rt hardware utils)
 
 target_sources(oto_pi PRIVATE ${OTO_SRCS})
 target_include_directories(oto_pi PRIVATE hardware/include)

@@ -3,9 +3,15 @@
 #include "I2cAccessor.h"
 #include "Utils.h"
 
+#include <Logger.h>
+#include <MathUtils.h>
+
 #include <iostream>
+#include <string>
 
 using namespace std;
+
+static constexpr int c_defaultDutyPercent = 100;
 
 template<typename T>
 static std::future<T> GetCompletedFuture(T value)
@@ -28,7 +34,7 @@ NozzleControl::~NozzleControl()
 {
     if (m_closeValveOnExit)
     {
-        CloseValve();
+        CloseValve(true /*fCloseTight*/);
     }
 }
 
@@ -41,7 +47,21 @@ int NozzleControl::Init()
     return 0;
 }
 
-std::future<I2cStatus> NozzleControl::RotateTo(MotorDirection direction, int targetAngle, int dutyPercent)
+int NozzleControl::GetPositionFetch()
+{
+    auto measurementFuture = m_magnetSensor.ReadAngleAsync();
+    measurementFuture.wait();
+    return GetPosition();
+}
+
+int NozzleControl::GetPressureFetch()
+{
+    auto measurementFuture = m_pressureSensor.ReadPressureAsync();
+    measurementFuture.wait();
+    return GetPressure();
+}
+
+std::future<HwResult> NozzleControl::RotateToAsync(MotorDirection direction, int targetAngle, int dutyPercent)
 {
     int startAngle = m_magnetSensor.GetRawAngleFetchIfStale();
 
@@ -69,7 +89,7 @@ std::future<I2cStatus> NozzleControl::RotateTo(MotorDirection direction, int tar
 
     if (distance <= epsilon)
     {
-        return GetCompletedFuture(I2cStatus::Success);
+        return GetCompletedFuture(HwResult::Success);
     }
 
     m_motorNozzle.Run(direction, dutyPercent);
@@ -92,126 +112,138 @@ std::future<I2cStatus> NozzleControl::RotateTo(MotorDirection direction, int tar
     minAngle = (minAngle + MagnetSensor::c_angleRange) % MagnetSensor::c_angleRange;
     maxAngle %= MagnetSensor::c_angleRange;
 
-    std::function<I2cStatus(int)> isExpectedValue;
+    std::function<HwResult(int)> isExpectedValue;
 
     cout << "minAngle: " << minAngle << ", maxAngle: " << maxAngle << endl;
     
     if (maxAngle > minAngle)
     {
         isExpectedValue = [maxAngle, minAngle] (int curAngle) {
-            return curAngle < maxAngle && curAngle > minAngle ? I2cStatus::Success : I2cStatus::Repeat;
+            return curAngle < maxAngle && curAngle > minAngle ? HwResult::Success : HwResult::Repeat;
         };
     }
     else {
         isExpectedValue = [maxAngle, minAngle] (int curAngle) {
-            return curAngle < maxAngle || curAngle > minAngle ? I2cStatus::Success : I2cStatus::Repeat;
+            return curAngle < maxAngle || curAngle > minAngle ? HwResult::Success : HwResult::Repeat;
         };
     };
 
     return m_magnetSensor.NotifyWhenAngle(move(isExpectedValue),
-        [this] (I2cStatus) { m_motorNozzle.Stop(); });
+        [this] (HwResult) { m_motorNozzle.Stop(); });
 }
 
-std::future<I2cStatus> NozzleControl::RotateDiff(int diffAngle, int dutyPercent)
+std::future<HwResult> NozzleControl::RotateDiffAsync(int diffAngle, int dutyPercent)
 {
     int curPosition = GetPositionFetchIfStale();
 
     MotorDirection direction = diffAngle > 0 ? MotorDirection::Right : MotorDirection::Left;
     int targetAngle = (curPosition + diffAngle + MagnetSensor::c_angleRange) % MagnetSensor::c_angleRange;
 
-    return RotateTo(direction, targetAngle, dutyPercent);
+    return RotateToAsync(direction, targetAngle, dutyPercent);
 }
 
-std::future<I2cStatus> NozzleControl::SetPressure(int targetPressure, int dutyPercent)
+std::future<HwResult> NozzleControl::SetPressureAsync(int targetPressure, int dutyPercent)
 {
-    int startPressure = m_pressureSensor.GetRawPressureFetchIfStale();
+    int startPressure = m_pressureSensor.GetPressureFetchIfStale();
 
     int diff = targetPressure - startPressure;
     int distance = abs(diff);
 
-    static constexpr int epsilon = 1000;
+    static constexpr int epsilon = 10;
     if (distance < epsilon)
     {
-        return GetCompletedFuture(I2cStatus::Success);
+        return GetCompletedFuture(HwResult::Success);
     }
 
-    if (targetPressure < m_pressureSensor.GetMinRawPressure())
+    if (targetPressure < m_pressureSensor.GetMinPressure())
     {
         cerr << "targetPressure too low" << endl;
-        return GetCompletedFuture(I2cStatus::UnexpectedValue);
+        return GetCompletedFuture(HwResult::UnexpectedValue);
     }
 
     MotorDirection direction = diff > 0 ? MotorDirection::Open : MotorDirection::Close;
 
     m_motorValve.Run(direction, dutyPercent);
 
-    static constexpr int inertialConst = 10'000;
+    static constexpr int inertialConst = 50;
+    static constexpr int trendAnalyzerSize = 16;
     int inertialOffset = inertialConst * dutyPercent / 100;
     inertialOffset = max(min(inertialOffset, distance / 2), epsilon);
 
-    std::function<I2cStatus(int)> isExpectedValue;
+    std::function<HwResult(int)> isExpectedValue;
 
     if (direction == MotorDirection::Open)
     {
         int thresholdPressure = targetPressure - inertialOffset;
-        isExpectedValue = [thresholdPressure, analyzer = SequenceTrendAnalyzer<16>()] (int curPressure) mutable {
+        isExpectedValue = [thresholdPressure, analyzer = SequenceTrendAnalyzer<trendAnalyzerSize>()] (int curPressure) mutable {
             analyzer.Push(curPressure);
-            if (analyzer.IsFull() && analyzer.CurTrend() < 200) {
-                return I2cStatus::MaxValueReached;
+            if (analyzer.IsFull() && analyzer.CurTrend(trendAnalyzerSize / 2) <= 0) {
+                return HwResult::MaxValueReached;
             }
-            return curPressure > thresholdPressure ? I2cStatus::Success : I2cStatus::Repeat;
+            return curPressure > thresholdPressure ? HwResult::Success : HwResult::Repeat;
         };
     }
     else
     {
         int thresholdPressure = targetPressure + inertialOffset;
-        isExpectedValue = [thresholdPressure, analyzer = SequenceTrendAnalyzer<16>()] (int curPressure) mutable {
+        isExpectedValue = [thresholdPressure, analyzer = SequenceTrendAnalyzer<trendAnalyzerSize>()] (int curPressure) mutable {
             analyzer.Push(curPressure);
-            if (analyzer.IsFull() && analyzer.CurTrend() > -200) {
-                return I2cStatus::UnexpectedValue;
+            if (analyzer.IsFull() && analyzer.CurTrend(trendAnalyzerSize / 2) >= 0) {
+                return HwResult::UnexpectedValue;
             }
-            return curPressure < thresholdPressure ? I2cStatus::Success : I2cStatus::Repeat;
+            return curPressure < thresholdPressure ? HwResult::Success : HwResult::Repeat;
         };
     }
 
     return m_pressureSensor.NotifyWhenPressure(move(isExpectedValue),
-        [this] (I2cStatus) { m_motorValve.Stop(); });
+        [this] (HwResult) { m_motorValve.Stop(); });
 }
 
-std::future<I2cStatus> NozzleControl::SetPressureDiff(int diffPressure, int dutyPercent)
+std::future<HwResult> NozzleControl::SetPressureDiffAsync(int diffPressure, int dutyPercent)
 {
     int curPressure = GetPressureFetchIfStale();
-    return SetPressure(curPressure + diffPressure, dutyPercent);
+    return SetPressureAsync(curPressure + diffPressure, dutyPercent);
 }
 
 bool NozzleControl::IsWaterPressurePresent()
 {
-    return IsItWaterPressure(m_pressureSensor.GetRawPressureFetchIfStale());
+    return IsItWaterPressure(m_pressureSensor.GetPressureFetchIfStale());
 }
 
-std::future<I2cStatus> NozzleControl::OpenValve()
+HwResult NozzleControl::OpenValve()
+{
+    auto futureOpen = OpenValveAsync();
+    futureOpen.wait();
+    return futureOpen.get();
+}
+
+std::future<HwResult> NozzleControl::OpenValveAsync()
 {
     if (IsWaterPressurePresent())
     {
-        return GetCompletedFuture(I2cStatus::Success);
+        return GetCompletedFuture(HwResult::Success);
     }
 
-    static constexpr int dutyPercent = 100;
-    m_motorValve.Run(MotorDirection::Open, dutyPercent);
+    return OpenValveInternalAsync(MotorDirection::Open);
+}
 
-    std::function<I2cStatus(int)> isExpectedValue = [this] (int curPressure) {
+std::future<HwResult> NozzleControl::OpenValveInternalAsync(MotorDirection direction)
+{
+    m_motorValve.Run(direction, c_defaultDutyPercent);
+
+    std::function<HwResult(int)> isExpectedValue = [this] (int curPressure) {
         auto curTime = chrono::steady_clock::now();
         int duration = static_cast<int>(chrono::duration_cast<chrono::milliseconds>(curTime - m_motorValve.RunStartedAt()).count());
         if (duration > c_valveOpeningTimeoutMs) {
-            return I2cStatus::Timeout;
+            return HwResult::Timeout;
         }
-        return IsItWaterPressure(curPressure) ? I2cStatus::Success : I2cStatus::Repeat;
+        return IsItWaterPressure(curPressure) ? HwResult::Success : HwResult::Repeat;
     };
 
-    std::function<void(I2cStatus)> completionAction = [this] (I2cStatus status) {
+    std::function<void(HwResult)> completionAction = [this] (HwResult status) {
         m_motorValve.Stop();
-        if (status != I2cStatus::Success) {
-            auto fut = CloseValve();
+        if (status != HwResult::Success) {
+            auto fut = CloseValveAsync();
             fut.wait();
         }
     };
@@ -219,33 +251,212 @@ std::future<I2cStatus> NozzleControl::OpenValve()
     return m_pressureSensor.NotifyWhenPressure(move(isExpectedValue), move(completionAction));
 }
 
-std::future<I2cStatus> NozzleControl::CloseValve()
+HwResult NozzleControl::CloseValve(bool fCloseTight)
+{
+    auto futureClose = CloseValveAsync();
+    futureClose.wait();
+    IfFailRetResult(futureClose.get());
+    if (fCloseTight && m_closedValveDurationMs != 0)
+    {
+        // Rotate valve to the middle closed position
+        m_motorValve.RunDuration(MotorDirection::Close, chrono::milliseconds(m_closedValveDurationMs / 2), c_defaultDutyPercent);
+    }
+    return HwResult::Success;
+}
+
+std::future<HwResult> NozzleControl::CloseValveAsync()
 {
     if (!IsWaterPressurePresent())
     {
         m_motorValve.RestoreInitialPosition();
-        return GetCompletedFuture(I2cStatus::Success);
+        return GetCompletedFuture(HwResult::NoWaterPressure);
     }
 
-    static constexpr int dutyPercent = 100;
-    m_motorValve.Run(MotorDirection::Close, dutyPercent);
+    return CloseValveInternalAsync(MotorDirection::Close);
+}
 
-    std::function<I2cStatus(int)> isExpectedValue = [this, analyzer = SequenceTrendAnalyzer<16>()] (int curPressure) mutable {
+std::future<HwResult> NozzleControl::CloseValveInternalAsync(MotorDirection direction)
+{
+    static constexpr int trendAnalyzerSize = 16;
+    m_motorValve.Run(direction, c_defaultDutyPercent);
+
+    std::function<HwResult(int)> isExpectedValue = [this, analyzer = SequenceTrendAnalyzer<trendAnalyzerSize>()] (int curPressure) mutable {
         analyzer.Push(curPressure);
-        if (analyzer.IsFull() && analyzer.CurTrend() < 10 &&
+        if (analyzer.IsFull() && analyzer.CurTrend(trendAnalyzerSize / 2) >= 0 &&
             !IsItWaterPressure(curPressure)) {
-            return I2cStatus::Success;
+            return HwResult::Success;
         }
-        return I2cStatus::Repeat;
+        return HwResult::Repeat;
     };
 
     return m_pressureSensor.NotifyWhenPressure(move(isExpectedValue),
-        [this] (I2cStatus) { m_motorValve.Stop(); });
+        [this] (HwResult) { m_motorValve.Stop(); });
 }
 
-void NozzleControl::TurnValve(MotorDirection direction, std::chrono::milliseconds duration, int dutyPercent)
+
+NozzleControlCalibrated::NozzleControlCalibrated() :
+    m_spPressureInterpolator(new Interpolator)
 {
-    m_motorValve.Run(direction, dutyPercent);
-    this_thread::sleep_for(duration);
-    m_motorValve.Stop();
+    m_spRotationInterpolator.emplace_back(new Interpolator);
+    m_spRotationInterpolator.emplace_back(new Interpolator);
+}
+
+NozzleControlCalibrated::~NozzleControlCalibrated()
+{
+}
+
+HwResult NozzleControlCalibrated::CalibrateNozzle(int minDurationUs, int maxDurationUs, double multiplier)
+{
+    for (int iDirection = 0; iDirection < 2; ++iDirection)
+    {
+        string logMessage = "Distance/duration values: [";
+        vector<pair<int,int>> angleDuration;
+        MotorDirection direction = static_cast<MotorDirection>(iDirection);
+        const auto calmDownDuration = chrono::milliseconds(300);
+        m_motorNozzle.RunDuration(direction, chrono::milliseconds(50), c_defaultDutyPercent);
+        this_thread::sleep_for(calmDownDuration);
+
+        int startAngle = GetPositionFetch();
+        for (int durationUs = minDurationUs; durationUs < maxDurationUs;)
+        {
+            m_motorNozzle.RunDuration(direction, chrono::microseconds(durationUs), c_defaultDutyPercent);
+            this_thread::sleep_for(calmDownDuration);
+            int endAngle = GetPositionFetch();
+            int distance = endAngle - startAngle;
+            startAngle = endAngle;
+
+            if (direction == MotorDirection::Left)
+            {
+                distance = -distance;
+            }
+            
+            if (distance < 0)
+            {
+                distance += MagnetSensor::c_angleRange;
+            }
+
+            angleDuration.emplace_back(distance, durationUs);
+            logMessage += "[" + to_string(distance) + ", " + to_string(durationUs) + "], ";
+            
+            durationUs = static_cast<int>(static_cast<double>(durationUs) * multiplier);
+        }
+
+        logMessage.pop_back();
+        logMessage.back() = ']';
+
+        LogInfo(logMessage.c_str());
+
+        m_spRotationInterpolator[iDirection]->SetValues(move(angleDuration));
+    }
+
+    return HwResult::Success;
+}
+
+HwResult NozzleControlCalibrated::CalibrateValve(int stepDurationMs)
+{
+    IfFailRetResult(FindCloseTightPosition());
+
+    IfFailRetResult(OpenValve());
+    IfFailRetResult(CloseValve(false /*fCloseTight*/));
+
+    vector<pair<int,int>> pressureDuration;
+    int curPressure = GetPressureFetch();
+    pressureDuration.emplace_back(curPressure, 0);
+    const auto calmDownDuration = chrono::milliseconds(stepDurationMs * 2);
+    int prevPressure = curPressure;
+
+    for (int durationMs = stepDurationMs; ; durationMs += stepDurationMs)
+    {
+        TurnValve(MotorDirection::Open, chrono::milliseconds(stepDurationMs), c_defaultDutyPercent);
+        this_thread::sleep_for(calmDownDuration);
+        curPressure = GetPressureFetch();
+        if (prevPressure >= curPressure)
+        {
+            break;
+        }
+        pressureDuration.emplace_back(curPressure, durationMs);
+        prevPressure = curPressure;
+    }
+    
+    m_spPressureInterpolator->SetValues(move(pressureDuration));
+
+    IfFailRetResult(CloseValve(true /*fCloseTight*/));
+
+    return HwResult::Success;
+}
+
+HwResult NozzleControlCalibrated::FindCloseTightPosition()
+{
+    IfFailRetResult(OpenValve());
+    IfFailRetResult(CloseValve(false /*fCloseTight*/));
+
+    auto startTime = chrono::steady_clock::now();
+    auto futureOpen = OpenValveInternalAsync(MotorDirection::Close);
+    futureOpen.wait();
+    IfFailRetResult(futureOpen.get());
+    auto endTime = chrono::steady_clock::now();
+
+    m_closedValveDurationMs = static_cast<int>(chrono::duration_cast<chrono::milliseconds>(endTime - startTime).count());
+
+    auto futureClose = CloseValveInternalAsync(MotorDirection::Open);
+    futureClose.wait();
+    IfFailRetResult(futureClose.get());
+
+    // Rotate valve to the middle closed position
+    m_motorValve.RunDuration(MotorDirection::Open, chrono::milliseconds(m_closedValveDurationMs / 2), c_defaultDutyPercent);
+
+    return HwResult::Success;
+}
+
+void NozzleControlCalibrated::RotateDiffDurationBased(int diffAngle)
+{
+    MotorDirection direction = diffAngle > 0 ? MotorDirection::Right : MotorDirection::Left;
+    int durationUs = m_spRotationInterpolator[static_cast<int>(direction)]->Predict(abs(diffAngle));
+
+    {
+        string logMessage = "curPosition: " + to_string(GetPosition());
+        logMessage += ", diffAngle: " + to_string(diffAngle) + ", durationUs: " + to_string(durationUs);
+        LogInfo(logMessage.c_str());
+    }
+    
+    if (durationUs > 0)
+    {
+        m_motorNozzle.RunDuration(direction, chrono::microseconds(durationUs), c_defaultDutyPercent);
+    }
+}
+
+#if 0
+future<HwResult> NozzleControlCalibrated::RotateDiffDurationBasedAsync(int diffAngle)
+{
+    MotorDirection direction = diffAngle > 0 ? MotorDirection::Right : MotorDirection::Left;
+    
+    promise<HwResult> completionPromise;
+    auto completionFuture = completionPromise.get_future();
+    m_rotationTimer.SetCallback([this, comPromise=move(completionPromise)] () mutable {
+        m_motorNozzle.Stop();
+        comPromise.set_value(HwResult::Success);
+    });
+
+    int durationUs = m_rotationInterpolator[static_cast<int>(direction)].Predict(diffAngle);
+
+    m_motorNozzle.Run(direction, c_defaultDutyPercent);
+    m_rotationTimer.Start(durationUs / 1000);
+    
+    return completionFuture;
+}
+#endif
+
+void NozzleControlCalibrated::SetPressureDurationBased(int targetPressure)
+{
+    int curPressure = GetPressureFetchIfStale();
+    int curDurationMs = m_spPressureInterpolator->Predict(curPressure);
+    int targetDurationMs = m_spPressureInterpolator->Predict(targetPressure);
+    
+    MotorDirection direction = targetPressure > curPressure ? MotorDirection::Open : MotorDirection::Close;
+    int durationMs = abs(targetDurationMs - curDurationMs);
+    
+    if (durationMs > 0)
+    {
+        m_motorValve.RunDuration(direction, chrono::milliseconds(durationMs), c_defaultDutyPercent);
+    }
 }

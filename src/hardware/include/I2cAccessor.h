@@ -15,7 +15,7 @@
 /// @brief 
 /// @param int: handle to I2C file.
 /// @param std::chrono::milliseconds&: delay next command for duration.
-using I2cCommand = std::function<I2cStatus(int, std::chrono::milliseconds&)>;
+using I2cCommand = std::function<HwResult(int, std::chrono::milliseconds&)>;
 
 class I2cTransaction
 {
@@ -54,15 +54,15 @@ public:
         return false;
     }
 
-    std::future<I2cStatus> GetFuture() { return m_completionPromise.get_future(); }
+    std::future<HwResult> GetFuture() { return m_completionPromise.get_future(); }
 
-    void MakeRecursive(std::function<I2cStatus()>&& isRecursionCompleted, std::chrono::milliseconds delayNextIteration)
+    void MakeRecursive(std::function<HwResult()>&& isRecursionCompleted, std::chrono::milliseconds delayNextIteration)
     {
         m_optIsRecursionCompleted.emplace(std::move(isRecursionCompleted));
         m_delayNextIteration = delayNextIteration;
     }
 
-    void SetCompletionAction(std::function<void(I2cStatus)>&& completionAction)
+    void SetCompletionAction(std::function<void(HwResult)>&& completionAction)
     {
         m_optCompletionAction.emplace(std::move(completionAction));
     }
@@ -72,20 +72,20 @@ public:
 
 private:
     TimePoint RunCommand();
-    void Complete(I2cStatus status);
+    void Complete(HwResult status);
 
     const int m_i2cHandle = -1;
     const int m_deviceAddress = 0;
     std::optional<I2cCommand> m_commands[3];
     int m_commandsCount = 0;
     int m_curCommand = 0;
-    std::promise<I2cStatus> m_completionPromise;
+    std::promise<HwResult> m_completionPromise;
     bool m_isAborted = false;
 
-    std::optional<std::function<void(I2cStatus)>> m_optCompletionAction;
+    std::optional<std::function<void(HwResult)>> m_optCompletionAction;
 
     // For recursive transaction
-    std::optional<std::function<I2cStatus()>> m_optIsRecursionCompleted;
+    std::optional<std::function<HwResult()>> m_optIsRecursionCompleted;
     std::chrono::milliseconds m_delayNextIteration = {};
 };
 
