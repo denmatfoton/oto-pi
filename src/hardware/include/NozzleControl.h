@@ -27,7 +27,8 @@ public:
 
     int Init();
 
-    std::future<HwResult> RotateToAsync(MotorDirection direction, int targetAngle, int dutyPercent);
+    std::future<HwResult> RotateToAsync(int targetAngle, int dutyPercent);
+    std::future<HwResult> RotateToDirectionAsync(MotorDirection direction, int targetAngle, int dutyPercent);
     std::future<HwResult> RotateDiffAsync(int diffAngle, int dutyPercent);
     std::future<HwResult> FetchPosition() { return m_magnetSensor.ReadAngleAsync(); }
     int GetPosition() { return m_magnetSensor.GetLastRawAngle(); }

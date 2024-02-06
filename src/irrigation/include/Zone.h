@@ -25,6 +25,15 @@ struct Coord
     int fi = 0;
 };
 
+struct
+{
+    bool operator()(Coord a, Coord b) const
+    {
+        return a.r != b.r ? a.r < b.r : a.fi < b.fi;
+    }
+}
+CoordComparer;
+
 class Zone
 {
 public:

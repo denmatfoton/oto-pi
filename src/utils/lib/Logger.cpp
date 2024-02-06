@@ -30,14 +30,18 @@ void Logger::Write(LogLevel level, const char* message, const char* functionName
 		auto millis = chrono::duration_cast<chrono::milliseconds>(since_epoch);
 		int ms = static_cast<int>(millis.count() % 1000);
 
-		m_output << std::put_time(&tm, "%D %T.") << ms;
-		m_output << " [" << strLogLevel[static_cast<int>(level)] << "] ";
-
-		if (functionName != nullptr)
 		{
-			m_output << functionName << ", " << line << ": ";
+			unique_lock lk(m_mutex);
+			
+			m_output << std::put_time(&tm, "%D %T.") << ms;
+			m_output << " [" << strLogLevel[static_cast<int>(level)] << "] ";
+
+			if (functionName != nullptr)
+			{
+				m_output << functionName << ", " << line << ": ";
+			}
+			
+			m_output << message << endl;
 		}
-		
-		m_output << message << endl;
 	}
 }

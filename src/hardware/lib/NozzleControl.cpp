@@ -61,7 +61,7 @@ int NozzleControl::GetPressureFetch()
     return GetPressure();
 }
 
-std::future<HwResult> NozzleControl::RotateToAsync(MotorDirection direction, int targetAngle, int dutyPercent)
+std::future<HwResult> NozzleControl::RotateToDirectionAsync(MotorDirection direction, int targetAngle, int dutyPercent)
 {
     int startAngle = m_magnetSensor.GetRawAngleFetchIfStale();
 
@@ -139,7 +139,26 @@ std::future<HwResult> NozzleControl::RotateDiffAsync(int diffAngle, int dutyPerc
     MotorDirection direction = diffAngle > 0 ? MotorDirection::Right : MotorDirection::Left;
     int targetAngle = (curPosition + diffAngle + MagnetSensor::c_angleRange) % MagnetSensor::c_angleRange;
 
-    return RotateToAsync(direction, targetAngle, dutyPercent);
+    return RotateToDirectionAsync(direction, targetAngle, dutyPercent);
+}
+
+std::future<HwResult> NozzleControl::RotateToAsync(int targetAngle, int dutyPercent)
+{
+    int curAngle = m_magnetSensor.GetRawAngleFetchIfStale();
+
+    int diffAngle = targetAngle - curAngle;
+    if (diffAngle > MagnetSensor::c_angleRange / 2)
+    {
+        diffAngle -= MagnetSensor::c_angleRange;
+    }
+    if (diffAngle < -MagnetSensor::c_angleRange / 2)
+    {
+        diffAngle += MagnetSensor::c_angleRange;
+    }
+
+    MotorDirection direction = diffAngle > 0 ? MotorDirection::Right : MotorDirection::Left;
+    
+    return RotateToDirectionAsync(direction, targetAngle, dutyPercent);
 }
 
 std::future<HwResult> NozzleControl::SetPressureAsync(int targetPressure, int dutyPercent)
@@ -219,8 +238,11 @@ HwResult NozzleControl::OpenValve()
 
 std::future<HwResult> NozzleControl::OpenValveAsync()
 {
+    LogInfo("");
+
     if (IsWaterPressurePresent())
     {
+        LogWarning("Water pressure already present");
         return GetCompletedFuture(HwResult::Success);
     }
 
@@ -256,18 +278,23 @@ HwResult NozzleControl::CloseValve(bool fCloseTight)
     auto futureClose = CloseValveAsync();
     futureClose.wait();
     IfFailRetResult(futureClose.get());
+
     if (fCloseTight && m_closedValveDurationMs != 0)
     {
         // Rotate valve to the middle closed position
         m_motorValve.RunDuration(MotorDirection::Close, chrono::milliseconds(m_closedValveDurationMs / 2), c_defaultDutyPercent);
     }
+
     return HwResult::Success;
 }
 
 std::future<HwResult> NozzleControl::CloseValveAsync()
 {
+    LogInfo("");
+
     if (!IsWaterPressurePresent())
     {
+        LogWarning("Water pressure not present");
         m_motorValve.RestoreInitialPosition();
         return GetCompletedFuture(HwResult::NoWaterPressure);
     }

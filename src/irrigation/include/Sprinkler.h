@@ -7,6 +7,7 @@
 
 class Logger;
 class NozzleControlCalibrated;
+enum class HwResult : int;
 
 namespace Irrigation {
 
@@ -20,8 +21,8 @@ public:
     void SetLogger(Logger* pLogger);
     NozzleControlCalibrated& GetNozzleControl() { return *m_spNozzle; }
     
-    std::future<void> ApplyWaterAsync(const Zone& zone, float density);
-    void ApplyWater(const Zone& zone, float density);
+    //std::future<void> ApplyWaterAsync(const Zone& zone, float density);
+    HwResult ApplyWater(const Zone& zone, float density);
 
     // Zone recording
     void StartZoneRecording(ZoneType type);
@@ -30,13 +31,13 @@ public:
     std::unique_ptr<Zone>&& TakeRecordedZone() { return std::move(m_spNewZone); }
 
 private:
-    void ApplyArea(const std::vector<Coord>& points, float density);
-    void ApplyLine(const std::vector<Coord>& points, float density);
-    void ApplyPoints(const std::vector<Coord>& points, float density);
+    HwResult ApplyArea(const std::vector<Coord>& points, float density);
+    HwResult ApplyLine(const std::vector<Coord>& points, float density);
+    HwResult ApplyPoints(const std::vector<Coord>& points, float density);
 
     std::unique_ptr<NozzleControlCalibrated> m_spNozzle;
     std::unique_ptr<Zone> m_spNewZone;
-    
+
     Logger* m_pLogger = nullptr;
 };
 

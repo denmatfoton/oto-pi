@@ -7,6 +7,7 @@ using TimePoint = std::chrono::time_point<std::chrono::steady_clock>;
 enum class HwResult : int
 {
     Success,
+    Failure,
 
     // For I2cAccessor
     Completed,

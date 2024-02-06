@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <mutex>
 
 enum LogLevel : int
 {
@@ -27,6 +28,7 @@ public:
 private:
 	LogLevel m_level = LogLevel::Info;
 	std::ofstream m_output;
+	std::mutex m_mutex;
 };
 
 #define Log(level, message) \

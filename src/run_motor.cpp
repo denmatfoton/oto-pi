@@ -39,12 +39,12 @@ int RotateNozzle(NozzleControl& nozzle, MotorDirection direction, int value, int
         return -1;
     }
 
-    auto rotateFuture = nozzle.RotateToAsync(direction, targetAngle, duty);
+    auto rotateFuture = nozzle.RotateToDirectionAsync(direction, targetAngle, duty);
 
     rotateFuture.wait();
     if (rotateFuture.get() != HwResult::Success)
     {
-        cerr << "RotateToAsync failed" << endl;
+        cerr << "RotateToDirectionAsync failed" << endl;
         return -1;
     }
 
