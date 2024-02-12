@@ -1,5 +1,7 @@
 #pragma once
 
+#include <PolarCoordinates.h>
+
 #include <cstdint>
 
 #include <atomic>
@@ -45,7 +47,7 @@ class MagnetSensor
     static constexpr int c_sensorAddress = 0x36;
 
 public:
-    static constexpr int c_angleRange = 0x1000;
+    static constexpr int c_angleRange = HwCoord::c_angleRange;
 
     MagnetSensor(I2cAccessor& i2cAccessor) : m_i2cAccessor(i2cAccessor) {}
 

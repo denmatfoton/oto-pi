@@ -15,19 +15,22 @@ add_subdirectory("irrigation")
 add_subdirectory("utils")
 
 set(COMMON_LIBS pthread i2c pigpio rt hardware utils)
+set(COMMON_INCLUDES
+	hardware/include
+	utils/include
+)
 
 target_sources(oto_pi PRIVATE ${OTO_SRCS})
-target_include_directories(oto_pi PRIVATE hardware/include)
+target_include_directories(oto_pi PRIVATE ${COMMON_INCLUDES})
 target_link_libraries(oto_pi PRIVATE ${COMMON_LIBS})
 
 target_sources(run_motor PRIVATE ${MOTOR_SRCS})
-target_include_directories(run_motor PRIVATE hardware/include)
+target_include_directories(run_motor PRIVATE ${COMMON_INCLUDES})
 target_link_libraries(run_motor PRIVATE ${COMMON_LIBS})
 
 target_sources(create_zone PRIVATE create_zone.cpp)
 target_include_directories(create_zone PRIVATE
-	hardware/include
+	${COMMON_INCLUDES}
 	irrigation/include
-	utils/include
 )
-target_link_libraries(create_zone PRIVATE ${COMMON_LIBS} irrigation ncurses)
+target_link_libraries(create_zone PRIVATE ${COMMON_LIBS} irrigation ncurses utils)

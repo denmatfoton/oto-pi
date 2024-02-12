@@ -1,6 +1,27 @@
 #pragma once
 
+#include <cmath>
 #include <vector>
+
+static constexpr float c_fpi = static_cast<float>(M_PI);
+static constexpr float c_f2pi = 2.f * static_cast<float>(M_PI);
+static constexpr float c_fpi_2 = static_cast<float>(M_PI_2);
+
+inline bool EqualFloat(float a, float b)
+{
+	static constexpr float epsilon = 0.001f;
+	return fabsf(a - b) < epsilon;
+}
+
+inline float RoundUp(float x, float chunk)
+{
+	return ceilf(x / chunk) * chunk;
+}
+
+inline float Sgn(float a)
+{
+	return 1.f - 2.f * std::signbit(a);
+}
 
 template<int n>
 class SequenceTrendAnalyzer

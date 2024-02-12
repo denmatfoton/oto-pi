@@ -2,8 +2,7 @@
 
 #include <Logger.h>
 #include <NozzleControl.h>
-
-#include <iostream>
+#include "PolygonApplicator.h"
 
 using namespace std;
 
@@ -51,30 +50,66 @@ HwResult Sprinkler::ApplyWater(const Zone& zone, float density)
     return result;
 }
 
-HwResult Sprinkler::ApplyArea(const vector<Coord>& points, float /*density*/)
+HwResult Sprinkler::ApplyArea(const vector<HwCoord>& points, float /*density*/)
 {
     LogInfo("Apply area started");
 
+    PolygonApplicator applicator(points);
+    applicator.SetRIncrement(20.f);
+    applicator.Begin();
+
+    while (true)
+    {
+        HwArc arc = applicator.NextArc();
+        if (!arc.IsValid()) break;
+
+        int curFi = m_spNozzle->GetPositionFetchIfStale();
+
+        MotorDirection rotationDirection = MotorDirection::Right;
+        int startAngle = arc.fi0;
+        int endAngle = arc.fi1;
+
+        if (HwCoord::AngleAbsDiff(curFi, arc.fi0) > HwCoord::AngleAbsDiff(curFi, arc.fi1))
+        {
+            rotationDirection = MotorDirection::Left;
+            swap(startAngle, endAngle);
+        }
+
+        auto rotateFuture = m_spNozzle->RotateToAsync(startAngle, c_defaultDutyPercent);
+        auto pressureFuture = m_spNozzle->SetPressureAsync(arc.r, c_defaultDutyPercent);
+
+        rotateFuture.wait();
+        pressureFuture.wait();
+        
+        IfFailRetResult(rotateFuture.get());
+        IfFailRetResult(pressureFuture.get());
+
+        // TODO: calculate duty based on density and current water pressure (R position).
+        int dutyPercent = 100;
+
+        rotateFuture = m_spNozzle->RotateToDirectionAsync(rotationDirection, endAngle, dutyPercent);
+
+        rotateFuture.wait();
+        IfFailRetResult(rotateFuture.get());
+    }
 
     return HwResult::Success;
 }
 
-HwResult Sprinkler::ApplyLine(const vector<Coord>& /*points*/, float /*density*/)
+HwResult Sprinkler::ApplyLine(const vector<HwCoord>& /*points*/, float /*density*/)
 {
     LogInfo("Apply line started");
 
     return HwResult::UnexpectedValue;
 }
 
-HwResult Sprinkler::ApplyPoints(const vector<Coord>& points, float density)
+HwResult Sprinkler::ApplyPoints(const vector<HwCoord>& points, float density)
 {
     LogInfo("Apply points started");
 
-    // sort(begin(points), end(points), CoordComparer);
-
     static constexpr float c_defaultPointDurationMs = 5000.f;
 
-    for (const Coord& point : points)
+    for (const HwCoord& point : points)
     {
         auto rotateFuture = m_spNozzle->RotateToAsync(point.fi, c_defaultDutyPercent);
         auto pressureFuture = m_spNozzle->SetPressureAsync(point.r, c_defaultDutyPercent);

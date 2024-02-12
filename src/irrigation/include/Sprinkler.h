@@ -31,9 +31,9 @@ public:
     std::unique_ptr<Zone>&& TakeRecordedZone() { return std::move(m_spNewZone); }
 
 private:
-    HwResult ApplyArea(const std::vector<Coord>& points, float density);
-    HwResult ApplyLine(const std::vector<Coord>& points, float density);
-    HwResult ApplyPoints(const std::vector<Coord>& points, float density);
+    HwResult ApplyArea(const std::vector<HwCoord>& points, float density);
+    HwResult ApplyLine(const std::vector<HwCoord>& points, float density);
+    HwResult ApplyPoints(const std::vector<HwCoord>& points, float density);
 
     std::unique_ptr<NozzleControlCalibrated> m_spNozzle;
     std::unique_ptr<Zone> m_spNewZone;

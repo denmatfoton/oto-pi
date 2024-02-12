@@ -1,6 +1,7 @@
 set(UTILS_SRCS
 	lib/Logger.cpp
 	lib/MathUtils.cpp
+	lib/PolarCoordinates.cpp
 	lib/Timer.cpp
 )
 
