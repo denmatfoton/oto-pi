@@ -16,7 +16,7 @@ using namespace std;
 void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
 {
     transaction.AddCommand([] (int i2cHandle, std::chrono::milliseconds& delayNextCommand) {
-        static constexpr char requestMeasurementCmd[] = {0xAA, 0, 0};
+        static constexpr char requestMeasurementCmd[] = {0xAA, '\0', '\0'};
         int bytesWritten = write(i2cHandle, requestMeasurementCmd, sizeof(requestMeasurementCmd));
         if (bytesWritten != sizeof(requestMeasurementCmd))
         {
