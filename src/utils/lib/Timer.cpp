@@ -2,6 +2,10 @@
 
 #include <signal.h>
 #include <cstring>
+#include <iostream>
+
+using namespace std;
+
 
 Timer::Timer() : timer_id_(nullptr)
 {
@@ -16,7 +20,7 @@ Timer::Timer() : timer_id_(nullptr)
    if (timer_create(CLOCK_REALTIME, &timeout_event, &timer_id_) != 0)
    {
       timer_id_ = nullptr;
-      perror("Create timer failed");
+      cerr << "Create timer failed" << endl;
    }
 }
 
@@ -52,7 +56,7 @@ bool Timer::Start(uint32_t initial_expiration_ms, uint32_t period_ms)
 
    if (timer_settime(timer_id_, 0, &timer_spec, nullptr) != 0)
    {
-      perror("Start timer failed");
+      cerr << "Start timer failed" << endl;
       return false;
    }
    return true;
