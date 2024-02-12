@@ -16,8 +16,8 @@ using namespace std;
 void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
 {
     transaction.AddCommand([] (int i2cHandle, std::chrono::milliseconds& delayNextCommand) {
-        static constexpr char requestMeasurementCmd[] = {0xAA, '\0', '\0'};
-        int bytesWritten = write(i2cHandle, requestMeasurementCmd, sizeof(requestMeasurementCmd));
+        static constexpr char requestMeasurementCmd[] = { '\xAA', '\0', '\0' };
+        int bytesWritten = write(i2cHandle, requestMeasurementCmd, static_cast<int>(sizeof(requestMeasurementCmd)));
         if (bytesWritten != sizeof(requestMeasurementCmd))
         {
             cerr << "ReadRawPressure: request measurement failed. bytesWritten: " << bytesWritten << endl;
@@ -48,7 +48,7 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
 
     transaction.AddCommand([this] (int i2cHandle, std::chrono::milliseconds& /*delayNextCommand*/) {
         char readBuff[4];
-        int bytesRead = read(i2cHandle, readBuff, sizeof(readBuff));
+        int bytesRead = read(i2cHandle, readBuff, static_cast<int>(sizeof(readBuff)));
         if (bytesRead != sizeof(readBuff))
         {
             cerr << "ReadRawPressure: read measurement failed. bytesRead: " << bytesRead << endl;
