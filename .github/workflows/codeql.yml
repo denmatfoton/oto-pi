@@ -80,6 +80,7 @@ jobs:
         cd pigpio-master
         make
         sudo make install
+        cd ..
         
         cmake -B ./build -DCMAKE_BUILD_TYPE=Release
         cmake --build ./build --config Release
