@@ -14,7 +14,10 @@ add_subdirectory("hardware")
 add_subdirectory("irrigation")
 add_subdirectory("utils")
 
-set(COMMON_LIBS pthread i2c pigpio rt hardware utils)
+set(COMMON_LIBS
+	i2c pigpio pthread rt # External libs
+ 	hardware utils        # Local libs
+)
 set(COMMON_INCLUDES
 	hardware/include
 	utils/include
