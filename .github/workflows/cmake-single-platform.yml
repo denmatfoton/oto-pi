@@ -24,7 +24,7 @@ jobs:
 
     - name: Install required libs
       run: |
-        sudo apt-get install libi2c-dev
+        sudo apt-get install -y libi2c-dev
         wget https://github.com/joan2937/pigpio/archive/master.zip
         unzip master.zip
         cd pigpio-master
