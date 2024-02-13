@@ -11,6 +11,7 @@ on:
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
+  language: 'c-cpp'
 
 jobs:
   build:
@@ -18,7 +19,7 @@ jobs:
     # You can convert this to a matrix build if you need cross-platform coverage.
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     permissions:
       # required for all workflows
       security-events: write
@@ -26,15 +27,6 @@ jobs:
       # only required for workflows in private repositories
       actions: read
       contents: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'c-cpp' ]
-        # CodeQL supports [ 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift' ]
-        # Use only 'java-kotlin' to analyze code written in Java, Kotlin or both
-        # Use only 'javascript-typescript' to analyze code written in JavaScript, TypeScript or both
-        # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
 
     steps:
     - uses: actions/checkout@v3
@@ -52,7 +44,7 @@ jobs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:
-        languages: ${{ matrix.language }}
+        languages: ${{ env.language }}
         # If you wish to specify custom queries, you can do so here or in a config file.
         # By default, queries listed here will override any specified in a config file.
         # Prefix the list here with "+" to use these queries and those in the config file.
@@ -78,4 +70,4 @@ jobs:
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
       with:
-        category: "/language:${{matrix.language}}"
+        category: "/language:${{env.language}}"
