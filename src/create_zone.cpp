@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
                 PrintZonePoints(*sprinkler.RecordedZone(), 3, 0);
             }
 
-            mvprintw(LINES - 1, 0, message.c_str());
+            mvprintw(LINES - 1, 0, "%s", message.c_str());
             refresh();
 
             if (ProcessInput(sprinkler, zoneFileName, message) != 0)
