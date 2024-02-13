@@ -107,9 +107,9 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    int value = strtol(argv[2], nullptr, 10);
+    int value = static_cast<int>(strtol(argv[2], nullptr, 10));
     
-    int duty = strtol(argv[3], nullptr, 10);
+    int duty = static_cast<int>(strtol(argv[3], nullptr, 10));
     if (duty < 0 || duty > 100)
     {
         cerr << "Incorrect duty argument." << endl;
