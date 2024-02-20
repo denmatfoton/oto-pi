@@ -66,6 +66,11 @@
         "variant": "cpp",
         "vector": "cpp",
         "future": "cpp",
-        "iomanip": "cpp"
-    }
+        "iomanip": "cpp",
+        "mqttclient.h": "c",
+        "websocket.h": "c"
+    },
+    "cSpell.words": [
+        "Mqtt"
+    ]
 }

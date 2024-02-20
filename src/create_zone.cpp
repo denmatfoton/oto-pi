@@ -5,7 +5,6 @@
 #include <Sprinkler.h>
 
 #include <iostream>
-#include <thread>
 
 using namespace std;
 

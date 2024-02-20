@@ -1,0 +1,45 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/../paho.mqtt.c/src",
+                //"D:/SysGCC/raspberry0/arm-linux-gnueabihf/include/c++/8",
+                //"D:/SysGCC/raspberry0/arm-linux-gnueabihf/include/arm-linux-gnueabihf/bits",
+                //"D:/SysGCC/raspberry0/arm-linux-gnueabihf/include/arm-linux-gnueabihf/c++/8",
+                "D:/SysGCC/raspberry0/arm-linux-gnueabihf/sysroot/usr",
+                "D:/SysGCC/raspberry0/arm-linux-gnueabihf/sysroot/usr/include",
+                "D:/SysGCC/raspberry0/arm-linux-gnueabihf/sysroot/usr/include/arm-linux-gnueabihf",
+                "D:/SysGCC/raspberry0/arm-linux-gnueabihf/sysroot/usr/include/c++"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.22621.0",
+            "compilerPath": "cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64"
+        },
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.22621.0",
+            "compilerPath": "D:/SysGCC/raspberry0/bin/arm-linux-gnueabihf-c++.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-arm"
+        }
+    ],
+    "version": 4
+}

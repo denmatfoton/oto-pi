@@ -1,15 +1,3 @@
-add_executable(oto_pi)
-add_executable(run_motor)
-add_executable(create_zone)
-
-set(OTO_SRCS
-	oto_pi.cpp
-)
-
-set(MOTOR_SRCS
-	run_motor.cpp
-)
-
 add_subdirectory("hardware")
 add_subdirectory("irrigation")
 add_subdirectory("utils")
@@ -17,22 +5,25 @@ add_subdirectory("utils")
 set(COMMON_LIBS
  	hardware utils
 )
-set(COMMON_INCLUDES
-	hardware/include
-	utils/include
-)
 
-target_sources(oto_pi PRIVATE ${OTO_SRCS})
-target_include_directories(oto_pi PRIVATE ${COMMON_INCLUDES})
-target_link_libraries(oto_pi PRIVATE ${COMMON_LIBS})
-
-target_sources(run_motor PRIVATE ${MOTOR_SRCS})
-target_include_directories(run_motor PRIVATE ${COMMON_INCLUDES})
-target_link_libraries(run_motor PRIVATE ${COMMON_LIBS})
-
+# create_zone
+add_executable(create_zone)
 target_sources(create_zone PRIVATE create_zone.cpp)
-target_include_directories(create_zone PRIVATE
-	${COMMON_INCLUDES}
-	irrigation/include
+target_link_libraries(create_zone
+	${COMMON_LIBS}
+	irrigation utils
+	ncurses
 )
-target_link_libraries(create_zone PRIVATE ${COMMON_LIBS} irrigation ncurses utils)
+
+# oto_pi
+add_executable(oto_pi)
+target_sources(oto_pi PRIVATE oto_pi.cpp)
+target_link_libraries(oto_pi
+	 ${COMMON_LIBS}
+	irrigation utils
+)
+
+# run_motor
+add_executable(run_motor)
+target_sources(run_motor PRIVATE run_motor.cpp)
+target_link_libraries(run_motor ${COMMON_LIBS})

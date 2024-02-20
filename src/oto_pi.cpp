@@ -1,73 +1,75 @@
+#include <ConfigManager.h>
+#include <Logger.h>
+#include <MqttWrapper.h>
+#include <NozzleControl.h>
+#include <Sprinkler.h>
+
+#include <cstdio>
 #include <iostream>
 
-#include "I2cAccessor.h"
-#include "MagnetSensor.h"
-#include "PressureSensor.h"
+#include <unistd.h>
+
 
 using namespace std;
 
-int main()
+int main(int argc, char *argv[])
 {
-    static constexpr const char i2cFileName[] = "/dev/i2c-1";
+    char *configFileName = nullptr;
 
-#if 0
-    int i2cHandle = open(i2cFileName, O_RDWR);
+    // Process command line arguments
+    for (int c = 0; c != -1; c = getopt(argc, argv, "c:")) {
+        switch (c) {
+        case 'c':
+            configFileName = optarg;
+            break;
+        }
+    }
 
-    PressureSensor pressureSensor(i2cHandle);
-
-    auto start = chrono::steady_clock::now();
-    float pressurePsi = pressureSensor.ReadPressurePsi();
-    auto end = chrono::steady_clock::now();
-    cout << "Pressure: " << pressurePsi << endl;
-    auto durationMs = chrono::duration_cast<chrono::milliseconds>(end - start).count();
-    cout << "Duration: " << durationMs << " ms" << endl;
-
-    MagnetSensor magnetSensor(i2cHandle);
-
-    magnetSensor.ReadConfig();
-    magnetSensor.ReadStatus();
-    magnetSensor.ReadAngle();
-    
-    close(i2cHandle);
-#endif
-
-    I2cAccessor i2cAccessor;
-    if (i2cAccessor.Init(i2cFileName) != 0)
+    if (configFileName == nullptr)
     {
-        cerr << "i2cAccessor.Init() failed" << endl;
+        cerr << "No config file was provided" << endl;
         return -1;
     }
 
-    PressureSensor pressureSensor(i2cAccessor);
-    MagnetSensor magnetSensor(i2cAccessor);
-
-    auto pressureFuture = pressureSensor.ReadPressureAsync();
-    auto angleFuture = magnetSensor.ReadAngleAsync();
-
-    angleFuture.wait();
-    if (angleFuture.get() != HwResult::Success)
+    // Read config file
+    ConfigManager configManager;
+    if (configManager.LoadFromFile(configFileName) != 0 ||
+        !configManager.IsValidConfig())
     {
-        cerr << "magnetSensor.ReadAngleAsync() failed" << endl;
-    }
-    else
-    {
-        int angle = magnetSensor.GetLastRawAngle();
-        cout << "Angle: " << angle << endl;
+        return -1;
     }
 
-    pressureFuture.wait();
+    // Establish MQTT connection
+    MqttWrapper::Client mqttClient;
+    if (mqttClient.Init(configManager.GetMqttServerAddress(), configManager.GetMqttClientId()) != MQTTCLIENT_SUCCESS)
+    {
+        return -1;
+    }
 
-    if (pressureFuture.get() != HwResult::Success)
+    cout << "Created MQTT client with ID: " << configManager.GetMqttClientId() << endl;
+    
+    int reconnectTimeoutS = configManager.GetReconnectTimeout().value_or(30);
+    if (mqttClient.ConnectRetry(configManager.GetMqttUser(), configManager.GetMqttPassword(),
+        reconnectTimeoutS) != MQTTCLIENT_SUCCESS)
     {
-        cerr << "pressureSensor.ReadPressureAsync() failed" << endl;
+        return -1;
     }
-    else
+
+    if (mqttClient.Subscribe(configManager.GetCommandTopic()) != MQTTCLIENT_SUCCESS)
     {
-        int rawPressure = pressureSensor.GetLastRawPressure();
-        cout << "Raw pressure: " << rawPressure << endl;
-        float pressurePsi = PressureSensor::ConvertToPsi(rawPressure);
-        cout << "Pressure: " << pressurePsi << " Psi" << endl;
+        return -1;
     }
+
+    cout << endl << "Connected to " << configManager.GetMqttServerAddress() << endl;
+    mqttClient.PublishAsync(configManager.GetStatusTopic(), "on");
+
+    // Idle
+    int ch = 0;
+    do
+    {
+        ch = getchar();
+    }
+    while (ch != 'Q' && ch != 'q');
 
     return 0;
 }
