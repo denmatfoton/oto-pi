@@ -127,7 +127,7 @@ int Client::PublishAsync(const string& topic, const char* message, int qos, MQTT
 {
     MQTTClient_message msgStruct = MQTTClient_message_initializer;
     msgStruct.payload = const_cast<char*>(message);
-    msgStruct.payloadlen = strlen(message);
+    msgStruct.payloadlen = static_cast<int>(strlen(message));
     msgStruct.qos = qos;
     msgStruct.retained = 0;
 
