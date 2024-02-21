@@ -1,7 +1,10 @@
 #include "Logger.h"
 
 #include <chrono>
+#include <cstdarg>
+#include <cstring>
 #include <iomanip>
+#include <iostream>
 
 using namespace std;
 
@@ -13,11 +16,21 @@ Logger::Logger(const char* filename)
 void Logger::Open(const char* filename)
 {
 	m_output.open(filename, ios::out | ios::app);
+	if (m_output.is_open())
+	{
+		cout << "Opened log file: " << filename << endl;
+		Write(LogLevel::Info, "Logger started");
+	}
+	else
+	{
+		cerr << "Failed to open log file: " << filename << endl;
+	}
 }
 
 const char* strLogLevel[static_cast<int>(Max)] = {"INFO", "WARNINIG", "ERROR"};
 
-void Logger::Write(LogLevel level, const char* message, const char* functionName, int line)
+void Logger::Write(LogLevel level, const char* message,
+	const char* functionName, const char* fileName, int line)
 {
 	if (m_output.is_open() && level >= m_level)
 	{
@@ -36,12 +49,27 @@ void Logger::Write(LogLevel level, const char* message, const char* functionName
 			m_output << std::put_time(&tm, "%D %T.") << ms;
 			m_output << " [" << strLogLevel[static_cast<int>(level)] << "] ";
 
-			if (functionName != nullptr)
+			if (functionName != nullptr && fileName != nullptr)
 			{
-				m_output << functionName << ", " << line << ": ";
+				const char* strippedFileName = strrchr(fileName, '/') + 1;
+				m_output << std::left << "| "
+					<< setw(20) << strippedFileName << "| "
+					<< setw(4)  << line << "| "
+					<< setw(20) << functionName << "| ";
 			}
 			
 			m_output << message << endl;
 		}
 	}
+}
+
+void Logger::FormattedWrite(LogLevel level, const char* functionName,
+	const char* fileName, int line, const char* format, ...)
+{
+	char message[256];
+	std::va_list args;
+	va_start(args, format);
+	vsnprintf(message, sizeof(message), format, args);
+	va_end(args);
+	Write(level, message, functionName, fileName, line);
 }

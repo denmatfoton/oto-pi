@@ -21,6 +21,7 @@ public:
 	const std::string& GetMqttPassword() 	  const { return GetStringValue("mqtt_password"); }
 	const std::string& GetCommandTopic() 	  const { return GetStringValue("command_topic"); }
 	const std::string& GetStatusTopic()  	  const { return GetStringValue("status_topic"); }
+	const std::string& GetLogFileName()  	  const { return GetStringValue("log_file"); }
 
 	std::optional<int> GetReconnectTimeout()  const { return GetIntValue("mqtt_reconnect_timeout"); }
 
