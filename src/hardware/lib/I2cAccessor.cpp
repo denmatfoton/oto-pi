@@ -92,7 +92,7 @@ void I2cAccessor::LoopFunc()
         auto curTime = chrono::steady_clock::now();
         if (curTime < m_tasks.top().startTime) continue;
 
-        auto curTask = move(m_tasks.top());
+        auto curTask = m_tasks.top();
         m_tasks.pop();
         
         lk.unlock();
