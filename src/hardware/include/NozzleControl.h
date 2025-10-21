@@ -4,6 +4,7 @@
 #include "MotorControl.h"
 #include "PressureSensor.h"
 
+#include <atomic>
 #include <memory>
 
 class Logger;
@@ -95,13 +96,11 @@ protected:
     MagnetSensor m_magnetSensor;
     PressureSensor m_pressureSensor;
     
-    atomic_int32_t m_targetPressure = 0;
-    OvershootInterpolator<16, 1000, int> m_overshootInterpolator;
+    std::atomic<int> m_targetPressure = 0;
+    OvershootInterpolator<20, 1000, int> m_overshootInterpolator;
     int m_iPressureMeasurementAfterMotorStart = 0;
     int m_pressureAtMotorStop = -1;
-    int m_changeRateAtMotorStop = 0;
-
-    Logger* m_pLogger = nullptr;
+    int m_changeRateAtMotorStop = 0;    Logger* m_pLogger = nullptr;
 };
 
 class Interpolator;
