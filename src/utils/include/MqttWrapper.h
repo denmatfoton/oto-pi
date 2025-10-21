@@ -2,6 +2,7 @@
 
 #include "MQTTClient.h"
 
+#include <functional>
 #include <string>
 #include <unordered_set>
 
@@ -29,6 +30,11 @@ public:
 
     void SetLogger(Logger* pLogger) { m_pLogger = pLogger; }
 
+    void SetMessageHandler(std::function<void(std::string_view, std::string_view)> handler)
+    {
+        m_optMessageHandler = std::move(handler);
+    }
+
 private:
     void OnMessageArrived(const char *topicName, MQTTClient_message *messageStruct);
     void OnConnectionLost(const char* cause);
@@ -37,6 +43,7 @@ private:
     std::unordered_set<std::string> m_subscribedTopics;
     
     Logger* m_pLogger = nullptr;
+    std::optional<std::function<void(cstd::string_view, std::string_view)>> m_optMessageHandler;
 };
 
 } // namespace MqttWrapper

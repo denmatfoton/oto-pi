@@ -4,12 +4,15 @@
 
 #include <future>
 #include <memory>
+#include <functional>
 
 class Logger;
 class NozzleControlCalibrated;
 enum class HwResult : int;
 
 namespace Irrigation {
+
+using CompletionCallback = std::function<void(HwResult)>;
 
 class Sprinkler
 {
@@ -21,8 +24,9 @@ public:
     void SetLogger(Logger* pLogger);
     NozzleControlCalibrated& GetNozzleControl() { return *m_spNozzle; }
     
-    //std::future<void> ApplyWaterAsync(const Zone& zone, float density);
-    HwResult ApplyWater(const Zone& zone, float density);
+    HwResult StartWateringAsync(Zone&& zone, float density, CompletionCallback callback = nullptr);
+    HwResult StartWatering(Zone&& zone, float density);
+    HwResult StopWatering();
 
     // Zone recording
     void StartZoneRecording(ZoneType type);
@@ -39,6 +43,9 @@ private:
     std::unique_ptr<Zone> m_spNewZone;
 
     Logger* m_pLogger = nullptr;
+
+    future<HwResult> m_wateringFuture;
+    std::atomic<bool> m_isWatering = false;
 };
 
 }

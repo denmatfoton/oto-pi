@@ -15,7 +15,6 @@ enum class MotorDirection : int
 class MotorControl
 {
 private:
-
     static constexpr int c_pwmFreq = 10000;
 
 public:
@@ -33,7 +32,10 @@ public:
         Stop();
     }
     void Stop();
-    TimePoint RunStartedAt() { return m_runStart; }
+    bool IsRunning() { return m_runDirection != 0; }
+    MotorDirection GetLastDirection() { return m_lastDirection; }
+    int GetLastDirectionSign() { return static_cast<int>(m_lastDirection) * 2 - 1; }
+    TimePoint RunStartedAt() { return m_runStartTime; }
     void RestoreInitialPosition();
 
     static int InitializeGpio();
@@ -42,7 +44,9 @@ private:
     const int m_pwmPin = -1;
     const int m_drainPin = -1;
 
-    TimePoint m_runStart;
-    int m_runDirection = 0;
+    MotorDirection m_lastDirection = MotorDirection::Close;
+
+    TimePoint m_runStartTime;
+    int m_runDirection = 0; // For directionalTimeAccumulator
     int m_directionalTimeAccumulatorMs = 0;
 };

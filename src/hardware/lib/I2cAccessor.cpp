@@ -45,8 +45,9 @@ int I2cAccessor::Init(const char* i2cFileName)
     return 0;
 }
 
-void I2cAccessor::PushTransaction(I2cTransaction&& newTransaction)
+I2cTransaction* I2cAccessor::PushTransaction(I2cTransaction&& newTransaction)
 {
+    I2cTransaction* pushedTransaction = nullptr;
     {
         unique_lock lk(m_mutex);
         for (auto& transaction : m_transactions)
@@ -57,11 +58,13 @@ void I2cAccessor::PushTransaction(I2cTransaction&& newTransaction)
                 transaction.m_isAborted = true;
             }
         }
-        m_transactions.emplace_front(move(newTransaction));
+        pushedTransaction = &m_transactions.emplace_front(move(newTransaction));
         auto curTime = chrono::steady_clock::now();
         m_tasks.emplace(curTime, m_transactions.begin());
     }
     m_cv.notify_one();
+
+    return pushedTransaction;
 }
 
 void I2cAccessor::LoopFunc()

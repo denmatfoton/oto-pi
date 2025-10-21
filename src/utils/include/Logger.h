@@ -5,37 +5,37 @@
 
 enum LogLevel : int
 {
-	Info,
-	Warning,
-	Error,
+    Info,
+    Warning,
+    Error,
 
-	Max,
+    Max,
 };
 
 class Logger
 {
 public:
-	Logger()
-	{
-	}
-	Logger(const char* filename);
+    Logger()
+    {
+    }
+    Logger(const char* filename);
 
-	void Open(const char* filename);
-	void Write(LogLevel level, const char* message,
-		const char* functionName = nullptr,
-		const char* fileName = nullptr,
-		int lineNumber = -1);
-	void FormattedWrite(LogLevel level, const char* functionName,
-		const char* fileName, int lineNumber, const char* format, ...);
-	void SetLogLevel(LogLevel level)
-	{
-		m_level = level;
-	}
+    bool Open(const char* filename);
+    void Write(LogLevel level, const char* message,
+        const char* functionName = nullptr,
+        const char* fileName = nullptr,
+        int lineNumber = -1);
+    void FormattedWrite(LogLevel level, const char* functionName,
+        const char* fileName, int lineNumber, const char* format, ...);
+    void SetLogLevel(LogLevel level)
+    {
+        m_level = level;
+    }
 
 private:
-	LogLevel m_level = LogLevel::Info;
-	std::ofstream m_output;
-	std::mutex m_mutex;
+    LogLevel m_level = LogLevel::Info;
+    std::ofstream m_output;
+    std::mutex m_mutex;
 };
 
 #define Log(level, ...) \

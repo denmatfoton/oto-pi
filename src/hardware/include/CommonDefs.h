@@ -20,6 +20,7 @@ enum class HwResult : int
     UnexpectedValue,
     MaxValueReached,
     Timeout,
+    Busy,
     NoWaterPressure,
 };
 

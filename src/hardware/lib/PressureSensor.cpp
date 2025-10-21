@@ -70,21 +70,45 @@ void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
         }
 
         reading -= c_outputMin;
-        m_lastRawValue.store(reading);
-        m_minRawValue.store(min(m_minRawValue.load(), reading));
-        m_lastMeasurementTimeMs.store(TimeSinceEpochMs());
+        ProcessMeasurement(reading);
 
         return HwResult::Completed;
     });
 }
 
+void PressureSensor::ProcessMeasurement(int curValue)
+{
+    int curTimeMs = TimeSinceEpochMs();
+    int prevValue = m_lastRawValue.load();
+    uint32_t prevTimeMs = m_lastMeasurementTimeMs.load();
+
+    m_lastRawValue.store(pressure);
+    m_minRawValue.store(min(m_minRawValue.load(), pressure));
+    m_lastMeasurementTimeMs.store(curTimeMs);
+
+    if (prevValue != 0)
+    {
+        int rate = TruncateNoise(curValue - prevValue) * c_rateMultiplyer / (curTimeMs - prevTimeMs);
+        m_lastChangeRate.store(rate);
+    }
+}
+
 std::future<HwResult> PressureSensor::ReadPressureAsync()
 {
+    if (m_pCurTransaction != nullptr)
+    {
+        cerr << "PressureSensor::ReadPressureAsync: transaction already in progress" << endl;
+        return GetCompletedFuture(HwResult::Failure);
+    }
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
     FillI2cTransaction(transaction);
 
+    transaction.SetCompletionAction([this] (HwResult) {
+        m_pCurTransaction = nullptr;
+    });
+
     future<HwResult> measurementFuture = transaction.GetFuture();
-    m_i2cAccessor.PushTransaction(move(transaction));
+    m_pCurTransaction = m_i2cAccessor.PushTransaction(move(transaction));
 
     return measurementFuture;
 }
@@ -92,6 +116,11 @@ std::future<HwResult> PressureSensor::ReadPressureAsync()
 std::future<HwResult> PressureSensor::NotifyWhenPressure(std::function<HwResult(int)>&& isExpectedValue,
         std::function<void(HwResult)>&& completionAction)
 {
+    if (m_pCurTransaction != nullptr)
+    {
+        cerr << "PressureSensor::ReadPressureAsync: transaction already in progress" << endl;
+        return GetCompletedFuture(HwResult::Failure);
+    }
     I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
     
     FillI2cTransaction(transaction);
@@ -100,12 +129,53 @@ std::future<HwResult> PressureSensor::NotifyWhenPressure(std::function<HwResult(
         return checkPressure(GetLastPressure());
     }, 2ms);
 
-    transaction.SetCompletionAction(move(completionAction));
+    transaction.SetCompletionAction(
+        [this, completionAction = move(completionAction)] (HwResult status) {
+            m_pCurTransaction = nullptr;
+            completionAction(status);
+        }
+    );
 
     future<HwResult> measurementFuture = transaction.GetFuture();
-    m_i2cAccessor.PushTransaction(move(transaction));
+    m_pCurTransaction = m_i2cAccessor.PushTransaction(move(transaction));
 
     return measurementFuture;
+}
+
+std::future<HwResult> PressureSensor::StartContinuousMeasurement(std::function<HwResult(int)>&& onValue)
+{
+    if (m_pCurTransaction != nullptr)
+    {
+        cerr << "PressureSensor::ReadPressureAsync: transaction already in progress" << endl;
+        return GetCompletedFuture(HwResult::Failure);
+    }
+    I2cTransaction transaction = m_i2cAccessor.CreateTransaction(c_sensorAddress);
+    
+    FillI2cTransaction(transaction);
+
+    transaction.MakeRecursive([this, onValue = move(onValue)] {
+        return onValue(GetLastPressure());
+    }, 2ms);
+
+    transaction.SetCompletionAction(
+        [this] (HwResult status) {
+            m_pCurTransaction = nullptr;
+        }
+    );
+
+    future<HwResult> measurementFuture = transaction.GetFuture();
+    m_pCurTransaction = m_i2cAccessor.PushTransaction(move(transaction));
+
+    return measurementFuture;
+}
+
+void PressureSensor::AbortMeasurement()
+{
+    if (m_pCurTransaction != nullptr)
+    {
+        m_pCurTransaction->Abort();
+        m_pCurTransaction = nullptr;
+    }
 }
 
 bool PressureSensor::IsMeasurementStale() const

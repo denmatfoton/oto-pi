@@ -37,7 +37,6 @@ int Client::Init(const std::string& serverAddress, const std::string& clientId)
         MQTTCLIENT_PERSISTENCE_NONE, nullptr); rc != MQTTCLIENT_SUCCESS)
     {
         LogError("Failed to create client, return code %d\n", rc);
-        printf("Failed to create client, return code %d\n", rc);
         return rc;
     }
 
@@ -53,7 +52,6 @@ int Client::Init(const std::string& serverAddress, const std::string& clientId)
         }, nullptr); rc != MQTTCLIENT_SUCCESS)
     {
         LogError("Failed to set callbacks, return code %d\n", rc);
-        printf("Failed to set callbacks, return code %d\n", rc);
         return rc;
     }
     
@@ -79,7 +77,6 @@ int Client::Connect(const string& userName, const string& password)
     if (int rc = MQTTClient_connect(m_client, &connectOptions); rc != MQTTCLIENT_SUCCESS)
     {
         LogError("Failed to connect, return code %d\n", rc);
-        printf("Failed to connect, return code %d\n", rc);
         return rc;
     }
 
@@ -108,7 +105,6 @@ int Client::Disconnect()
     if (rc != MQTTCLIENT_SUCCESS)
     {
         LogError("Failed to disconnect, return code %d\n", rc);
-        printf("Failed to disconnect, return code %d\n", rc);
     }
     else
     {
@@ -124,7 +120,6 @@ int Client::Subscribe(const string& topic)
     if (int rc = MQTTClient_subscribe(m_client, topic.c_str(), qos); rc != MQTTCLIENT_SUCCESS)
     {
         LogError("Failed to subscribe to topic '%s', return code %d\n", topic.c_str(), rc);
-        printf("Failed to subscribe, return code %d\n", rc);
         return rc;
     }
 
@@ -140,7 +135,6 @@ int Client::Unsubscribe(const string& topic)
     if (int rc = MQTTClient_unsubscribe(m_client, topic.c_str()); rc != MQTTCLIENT_SUCCESS)
     {
         LogError("Failed to unsubscribe from topic '%s', return code %d\n", topic.c_str(), rc);
-        printf("Failed to unsubscribe, return code %d\n", rc);
         return rc;
     }
     
@@ -161,8 +155,7 @@ int Client::PublishAsync(const string& topic, const char* message, int qos, MQTT
 
     if (int rc = MQTTClient_publishMessage(m_client, topic.c_str(), &msgStruct, pToken); rc != MQTTCLIENT_SUCCESS)
     {
-        LogInfo("Failed to publish topic: '%s', message: '%s', return code %d", topic.c_str(), message, rc);
-        printf("Failed to publish message, return code %d\n", rc);
+        LogError("Failed to publish topic: '%s', message: '%s', return code %d", topic.c_str(), message, rc);
         return rc;
     }
     
@@ -175,16 +168,19 @@ void Client::OnMessageArrived(const char *topicName, MQTTClient_message *message
 {
     const char* message = reinterpret_cast<const char*>(messageStruct->payload);
     LogInfo("Received topic: '%s', message: '%.*s'", topicName, messageStruct->payloadlen, message);
-    printf("Message arrived:\n");
-    printf("    Topic: %s\n", topicName);
-    printf("    message: %.*s\n", messageStruct->payloadlen, message);
+    if (m_optMessageHandler)
+    {
+        m_optMessageHandler->operator()(string_view(topicName), string_view(message, messageStruct->payloadlen));
+    }
+    else
+    {
+        LogWarning("No message handler set");
+    }
 }
 
 void Client::OnConnectionLost(const char* cause)
 {
     LogWarning("Cause: %s", cause);
-    printf("\nConnection lost\n");
-    printf("     cause: %s\n", cause);
 }
 
 } // namespace MqttWrapper

@@ -8,8 +8,8 @@
 #include <future>
 #include <list>
 #include <mutex>
-#include <queue>
 #include <optional>
+#include <queue>
 #include <thread>
 
 /// @brief 
@@ -70,6 +70,11 @@ public:
     bool IsValid() const { return m_i2cHandle >= 0; }
     bool IsCompleted() const { return m_curCommand == m_commandsCount; }
 
+    void Abort()
+    {
+        m_isAborted = true;
+    }
+
 private:
     TimePoint RunCommand();
     void Complete(HwResult status);
@@ -102,7 +107,7 @@ public:
         return I2cTransaction(m_i2cHandle, deviceAddress);
     }
 
-    void PushTransaction(I2cTransaction&& transaction);
+    I2cTransaction* PushTransaction(I2cTransaction&& transaction);
 
     int GetI2cHandle() { return m_i2cHandle; }
 

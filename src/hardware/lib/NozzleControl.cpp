@@ -12,14 +12,16 @@
 using namespace std;
 
 static constexpr int c_defaultDutyPercent = 100;
+static constexpr int c_preciseDutyPercent = 20;
+static constexpr int c_pressureTolerance = 20;
+static constexpr int c_minPressureMeasurementAfterMotorStart = 3;
 
 template<typename T>
 static std::future<T> GetCompletedFuture(T value)
 {
-    promise<T> pr;
-    auto fut = pr.get_future();
-    pr.set_value(value);
-    return fut;
+    return std::async(std::launch::deferred, [value = std::move(value)]() {
+        return value;
+    });
 }
 
 NozzleControl::NozzleControl() :
@@ -320,12 +322,95 @@ std::future<HwResult> NozzleControl::CloseValveInternalAsync(MotorDirection dire
         [this] (HwResult) { m_motorValve.Stop(); });
 }
 
+void NozzleControl::StopMotorValveIfRunning(int curPressure, int changeRate)
+{
+    if (m_motorValve.IsRunning())
+    {
+        m_motorValve.Stop();
+        m_pressureAtMotorStop = curPressure;
+        m_changeRateAtMotorStop = changeRate;
+    }
+}
+
+HwResult NozzleControl::ProcessPressureMeasurement(int curPressure)
+{
+    ++m_iPressureMeasurementAfterMotorStart;
+    int changeRate = m_pressureSensor.GetLastChangeRate();
+
+    if (m_iPressureMeasurementAfterMotorStart > c_minPressureMeasurementAfterMotorStart &&
+        changeRate * m_motorValve.GetLastDirectionSign() <= 0)
+    {
+        if (m_motorValve.IsRunning())
+        {
+            // Valve reached maximum opening position and is closing in opposite direction
+            m_motorValve.Stop();
+            cerr << "Valve reached maximum opening position and is closing in opposite direction" << endl;
+            LogError("Valve reached maximum opening position and is closing in opposite direction, "
+                "pressure: %d, changeRate: %d", curPressure, changeRate);
+            return HwResult::MaxValueReached;
+        }
+        else if (m_pressureAtMotorStop > 0)
+        {
+            // Change rate is zero or opposite to the last direction, means valve stopped completely
+            m_overshootInterpolator.SetOvershoot(m_changeRateAtMotorStop, abs(curPressure - m_pressureAtMotorStop));
+            m_pressureAtMotorStop = -1;
+            m_changeRateAtMotorStop = 0;
+        }
+    }
+
+    int targetPressure = m_targetPressure.load();
+    int diff = targetPressure - curPressure;
+
+    if (abs(diff) <= c_pressureTolerance)
+    {
+        StopMotorValveIfRunning(curPressure, changeRate);
+        return HwResult::Repeat;
+    }
+
+    MotorDirection requiredDirection = diff > 0 ? MotorDirection::Open : MotorDirection::Close;
+    if (!m_motorValve.IsRunning() || m_motorValve.GetLastDirection() != requiredDirection)
+    {
+        // Motor is not running or running in opposite direction
+        // Start motor in required direction
+        LogInfo("Starting motor in required direction: %d", static_cast<int>(requiredDirection));
+        m_motorValve.Run(requiredDirection, c_defaultDutyPercent);
+        m_iPressureMeasurementAfterMotorStart = 0;
+        return HwResult::Repeat;
+    }
+
+    // Motor is running in required direction
+
+    if (m_iPressureMeasurementAfterMotorStart < c_minPressureMeasurementAfterMotorStart)
+    {
+        /// not enough measurements to check if stop condition is met
+        return HwResult::Repeat;
+    }
+    
+    // Check if stop condition is met
+    int predictedOvershoot = m_overshootInterpolator.PredictOvershoot(changeRate);
+    
+    // overshoot is always positive, add or subtract it depending on the direction
+    int adjustedTargetPressure = targetPressure - predictedOvershoot * m_motorValve.GetLastDirectionSign();
+
+    bool shouldStop = (requiredDirection == MotorDirection::Open && curPressure >= adjustedTargetPressure) ||
+                  (requiredDirection == MotorDirection::Close && curPressure <= adjustedTargetPressure);
+    if (shouldStop)
+    {
+        // Stop the motor
+        LogInfo("Stopping motor, curPressure: %d, rate: %d, target: %d, adjustedTarget: %d", 
+                curPressure, changeRate, targetPressure, adjustedTargetPressure);
+        m_motorValve.Stop();
+        return HwResult::Repeat;
+    }
+
+    return HwResult::Repeat;
+}
 
 NozzleControlCalibrated::NozzleControlCalibrated() :
     m_spPressureInterpolator(new Interpolator)
 {
-    m_spRotationInterpolator.emplace_back(new Interpolator);
-    m_spRotationInterpolator.emplace_back(new Interpolator);
+    m_spRotationInterpolator.emplace_back(new Interpolator); // Left direction
+    m_spRotationInterpolator.emplace_back(new Interpolator); // Right direction
 }
 
 NozzleControlCalibrated::~NozzleControlCalibrated()

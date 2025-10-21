@@ -13,18 +13,18 @@ Logger::Logger(const char* filename)
 	Open(filename);
 }
 
-void Logger::Open(const char* filename)
+bool Logger::Open(const char* filename)
 {
 	m_output.open(filename, ios::out | ios::app);
 	if (m_output.is_open())
 	{
 		cout << "Opened log file: " << filename << endl;
 		Write(LogLevel::Info, "Logger started");
+		return true;
 	}
-	else
-	{
-		cerr << "Failed to open log file: " << filename << endl;
-	}
+	
+	cerr << "Failed to open log file: " << filename << endl;
+	return false;
 }
 
 const char* strLogLevel[static_cast<int>(Max)] = {"INFO", "WARNINIG", "ERROR"};

@@ -22,7 +22,8 @@ class PressureSensor
     static constexpr int c_minPsi = 0;
     static constexpr int c_outputMax = 0xE66666;
     static constexpr int c_outputMin = 0x19999A;
-    static constexpr int c_truncateShift = 12;
+    static constexpr int c_truncateShift = 10;
+    static constexpr int c_rateMultiplyer = 1;
 
 public:
     PressureSensor(I2cAccessor& i2cAccessor) : m_i2cAccessor(i2cAccessor) {}
@@ -31,10 +32,15 @@ public:
     std::future<HwResult> NotifyWhenPressure(std::function<HwResult(int)>&& isExpectedValue,
         std::function<void(HwResult)>&& completionAction);
 
+    std::future<HwResult> StartContinuousMeasurement(std::function<HwResult(int)>&& onValue);
+    void AbortMeasurement();
+
     int GetLastRawPressure() const { return m_lastRawValue.load(); }
     int GetLastPressure() const { return TruncateNoise(GetLastRawPressure()); }
     int GetMinRawPressure() const { return m_minRawValue.load(); }
     int GetMinPressure() const { return TruncateNoise(GetMinRawPressure()); }
+    int GetLastChangeRate() const { return m_lastChangeRate.load(); }
+
     uint32_t GetLastMeasurementTimeMs() const { return m_lastMeasurementTimeMs.load(); }
     bool IsMeasurementStale() const;
     int GetPressureFetchIfStale();
@@ -54,9 +60,12 @@ public:
 
 private:
     void FillI2cTransaction(I2cTransaction& transaction);
+    void ProcessMeasurement(int curValue);
 
     I2cAccessor& m_i2cAccessor;
+    I2cTransaction* m_pCurTransaction = nullptr;
     std::atomic_int32_t m_lastRawValue = 0;
+    std::atomic_int32_t m_lastChangeRate = 0;
     std::atomic_int32_t m_minRawValue = INT_MAX / 2;
     std::atomic_uint32_t m_lastMeasurementTimeMs = 0;
 };

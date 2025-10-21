@@ -62,8 +62,22 @@ public:
         m_pLogger = pLogger;
     }
 
+    void SetTargetPressure(int targetPressure)
+    {
+        m_targetPressure = targetPressure;
+    }
+
+    std::future<HwResult> StartContinuousPressureMeasurement()
+    {
+        return m_pressureSensor.StartContinuousMeasurement(
+            [this] (int curPressure) {
+                return ProcessPressureMeasurement(curPressure);
+            });
+    }
 protected:
-    void HandleValveState(HwResult status, MotorDirection direction);
+    HwResult ProcessPressureMeasurement(int curPressure);
+    void StopMotorValveIfRunning(int curPressure, int changeRate);
+
     bool IsItWaterPressure(int curPressure) {
         return curPressure > m_pressureSensor.GetMinPressure() + c_waterPressureThreshold;
     }
@@ -72,12 +86,21 @@ protected:
 
     int m_closedValveDurationMs = 200;  // Duration between valve closure and valve opening when motor keeps running
     bool m_closeValveOnExit = true;
+
+    
     MotorControl m_motorNozzle;
     MotorControl m_motorValve;
+    
     std::unique_ptr<I2cAccessor> m_spI2cAccessor;
     MagnetSensor m_magnetSensor;
     PressureSensor m_pressureSensor;
     
+    atomic_int32_t m_targetPressure = 0;
+    OvershootInterpolator<16, 1000, int> m_overshootInterpolator;
+    int m_iPressureMeasurementAfterMotorStart = 0;
+    int m_pressureAtMotorStop = -1;
+    int m_changeRateAtMotorStop = 0;
+
     Logger* m_pLogger = nullptr;
 };
 

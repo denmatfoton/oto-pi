@@ -91,7 +91,7 @@ std::optional<int> ConfigManager::GetIntValue(const string& setting) const
 
 const string& ConfigManager::GetStringValue(const string& setting) const
 {
-	static const string empty = ""s;
+	static const string emptyStr = ""s;
 	auto it = m_settingsMap.find(setting);
-	return it != m_settingsMap.end() ? it->second : empty;
+	return it != m_settingsMap.end() ? it->second : emptyStr;
 }

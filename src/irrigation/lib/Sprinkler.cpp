@@ -21,16 +21,65 @@ void Sprinkler::SetLogger(Logger* pLogger)
     m_spNozzle->SetLogger(pLogger);
 }
 
-/*future<void> Sprinkler::ApplyWaterAsync(const Zone& zone, float density)
+HwResult Sprinkler::StartWateringAsync(Zone&& zone, float density, CompletionCallback callback)
 {
-    return async(&Sprinkler::ApplyWater, this, zone, density);
-}*/
+    bool expected = false;
+    if (!m_isWatering.compare_exchange_strong(expected, true))
+    {
+        // Already watering
+        if (callback)
+        {
+            callback(HwResult::Abort);
+        }
+        return HwResult::Abort;
+    }
 
-HwResult Sprinkler::ApplyWater(const Zone& zone, float density)
+    m_wateringFuture = async(launch::async, [this, zone = move(zone), density, callback]() mutable {
+        HwResult result = StartWatering(move(zone), density);
+        m_isWatering = false;
+        if (callback)
+        {
+            callback(result);
+        }
+        return result;
+    });
+    
+    return HwResult::Success;
+}
+
+HwResult Sprinkler::StopWatering()
 {
-    IfFailRetResult(m_spNozzle->OpenValve());
+    if (!m_isWatering)
+    {
+        return HwResult::Success;
+    }
 
-    HwResult result = HwResult::Failure;
+    m_isWatering = false;
+
+    if (m_wateringFuture.valid())
+    {
+        m_wateringFuture.wait();
+    }
+
+    return HwResult::Success;
+}
+
+HwResult Sprinkler::StartWatering(Zone&& zone, float density)
+{
+    // m_isWatering should already be set by StartWateringAsync
+    // This is just a defensive check if called directly
+    bool expected = false;
+    if (!m_isWatering.compare_exchange_strong(expected, true))
+    {
+        return HwResult::Abort;
+    }
+
+    HwResult result = m_spNozzle->OpenValve();
+    if (result != HwResult::Success)
+    {
+        m_isWatering = false;
+        return result;
+    }
 
     switch (zone.GetType())
     {
@@ -46,6 +95,7 @@ HwResult Sprinkler::ApplyWater(const Zone& zone, float density)
     }
     
     m_spNozzle->CloseValve(true);
+    m_isWatering = false;
 
     return result;
 }
@@ -58,7 +108,7 @@ HwResult Sprinkler::ApplyArea(const vector<HwCoord>& points, float /*density*/)
     applicator.SetRIncrement(20.f);
     applicator.Begin();
 
-    while (true)
+    while (m_isWatering)
     {
         HwArc arc = applicator.NextArc();
         if (!arc.IsValid()) break;
@@ -100,7 +150,7 @@ HwResult Sprinkler::ApplyLine(const vector<HwCoord>& /*points*/, float /*density
 {
     LogInfo("Apply line started");
 
-    return HwResult::UnexpectedValue;
+    return HwResult::UnexpectedValue; // TODO: implement line applicator
 }
 
 HwResult Sprinkler::ApplyPoints(const vector<HwCoord>& points, float density)
@@ -111,6 +161,11 @@ HwResult Sprinkler::ApplyPoints(const vector<HwCoord>& points, float density)
 
     for (const HwCoord& point : points)
     {
+        if (!m_isWatering)
+        {
+            break;
+        }
+
         auto rotateFuture = m_spNozzle->RotateToAsync(point.fi, c_defaultDutyPercent);
         auto pressureFuture = m_spNozzle->SetPressureAsync(point.r, c_defaultDutyPercent);
 

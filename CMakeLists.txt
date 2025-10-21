@@ -4,7 +4,7 @@ PROJECT(OtoPi
     VERSION 1.0
     DESCRIPTION "Oto lawn sprinkler driver for Raspberry Pi")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 FIND_PACKAGE(Threads REQUIRED)
@@ -22,7 +22,7 @@ set(COMMON_CXX_FLAGS
 -Wsign-promo
 -Wunreachable-code
 -pedantic
--std=gnu++17
+-std=gnu++20
 )
 
 ADD_COMPILE_OPTIONS(
