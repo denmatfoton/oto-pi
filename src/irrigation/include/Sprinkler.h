@@ -44,7 +44,7 @@ private:
 
     Logger* m_pLogger = nullptr;
 
-    future<HwResult> m_wateringFuture;
+    std::future<HwResult> m_wateringFuture;
     std::atomic<bool> m_isWatering = false;
 };
 
