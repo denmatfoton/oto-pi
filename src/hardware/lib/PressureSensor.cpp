@@ -13,6 +13,14 @@ extern "C" {
 
 using namespace std;
 
+template<typename T>
+static std::future<T> GetCompletedFuture(T value)
+{
+    return std::async(std::launch::deferred, [value = std::move(value)]() {
+        return value;
+    });
+}
+
 void PressureSensor::FillI2cTransaction(I2cTransaction& transaction)
 {
     transaction.AddCommand([] (int i2cHandle, std::chrono::milliseconds& delayNextCommand) {
@@ -82,8 +90,8 @@ void PressureSensor::ProcessMeasurement(int curValue)
     int prevValue = m_lastRawValue.load();
     uint32_t prevTimeMs = m_lastMeasurementTimeMs.load();
 
-    m_lastRawValue.store(pressure);
-    m_minRawValue.store(min(m_minRawValue.load(), pressure));
+    m_lastRawValue.store(curValue);
+    m_minRawValue.store(min(m_minRawValue.load(), curValue));
     m_lastMeasurementTimeMs.store(curTimeMs);
 
     if (prevValue != 0)
@@ -158,7 +166,7 @@ std::future<HwResult> PressureSensor::StartContinuousMeasurement(std::function<H
     }, 2ms);
 
     transaction.SetCompletionAction(
-        [this] (HwResult status) {
+        [this] (HwResult /*status*/) {
             m_pCurTransaction = nullptr;
         }
     );
