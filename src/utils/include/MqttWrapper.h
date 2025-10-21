@@ -3,6 +3,7 @@
 #include "MQTTClient.h"
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <unordered_set>
 
@@ -43,7 +44,7 @@ private:
     std::unordered_set<std::string> m_subscribedTopics;
     
     Logger* m_pLogger = nullptr;
-    std::optional<std::function<void(cstd::string_view, std::string_view)>> m_optMessageHandler;
+    std::optional<std::function<void(std::string_view, std::string_view)>> m_optMessageHandler;
 };
 
 } // namespace MqttWrapper
