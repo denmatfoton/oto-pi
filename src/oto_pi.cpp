@@ -51,23 +51,23 @@ public:
 
     int SetupMqtt()
     {
-        if (m_mqttClient.Init(configManager.GetMqttServerAddress(), configManager.GetMqttClientId()) != MQTTCLIENT_SUCCESS)
+        if (m_mqttClient.Init(m_configManager.GetMqttServerAddress(), m_configManager.GetMqttClientId()) != MQTTCLIENT_SUCCESS)
         {
             LogError("Failed to initialize MQTT client");
             return -1;
         }
     
-        LogInfo("Created MQTT client with ID: %s", configManager.GetMqttClientId().c_str());
+        LogInfo("Created MQTT client with ID: %s", m_configManager.GetMqttClientId().c_str());
         
-        int reconnectTimeoutS = configManager.GetReconnectTimeout().value_or(30);
-        if (m_mqttClient.ConnectRetry(configManager.GetMqttUser(), configManager.GetMqttPassword(),
+        int reconnectTimeoutS = m_configManager.GetReconnectTimeout().value_or(30);
+        if (m_mqttClient.ConnectRetry(m_configManager.GetMqttUser(), m_configManager.GetMqttPassword(),
             reconnectTimeoutS) != MQTTCLIENT_SUCCESS)
         {
             LogError("Failed to connect to MQTT server");
             return -1;
         }
     
-        if (m_mqttClient.Subscribe(configManager.GetCommandTopic()) != MQTTCLIENT_SUCCESS)
+        if (m_mqttClient.Subscribe(m_configManager.GetCommandTopic()) != MQTTCLIENT_SUCCESS)
         {
             LogError("Failed to subscribe to command topic");
             return -1;
@@ -75,15 +75,15 @@ public:
     
         m_mqttClient.SetMessageHandler([this] (string_view topic, string_view message) { ProcessMessage(topic, message); });
     
-        LogInfo("Connected to %s", configManager.GetMqttServerAddress().c_str());
-        m_mqttClient.PublishAsync(configManager.GetStatusTopic(), "on");
+        LogInfo("Connected to %s", m_configManager.GetMqttServerAddress().c_str());
+        m_mqttClient.PublishAsync(m_configManager.GetStatusTopic(), "on");
     
         return 0;
     }
 
     void ProcessMessage(string_view topic, string_view message)
     {
-        if (topic == configManager.GetCommandTopic())
+        if (topic == m_configManager.GetCommandTopic())
         {
             istringstream iss(message.data());
             string command;
@@ -106,8 +106,8 @@ public:
                     LogWarning("Density is missing, using default value of 1.0");
                 }
 
-                float density = densityStr.empty() ? 1. : stof(densityStr);
-                Zone zone;
+                float density = densityStr.empty() ? 1.0f : stof(densityStr);
+                Irrigation::Zone zone;
                 if (zone.LoadFromFile(zoneName.c_str()) != 0)
                 {
                     LogWarning("Failed to load zone from file: %s", zoneName.c_str());
@@ -118,12 +118,12 @@ public:
                     if (result == HwResult::Success)
                     {
                         LogInfo("Watering completed successfully");
-                        m_mqttClient.PublishAsync(configManager.GetStatusTopic(), "wateringDone");
+                        m_mqttClient.PublishAsync(m_configManager.GetStatusTopic(), "wateringDone");
                     }
                     else
                     {
                         LogWarning("Watering failed with result: %d", static_cast<int>(result));
-                        m_mqttClient.PublishAsync(configManager.GetStatusTopic(), "wateringFailed");
+                        m_mqttClient.PublishAsync(m_configManager.GetStatusTopic(), "wateringFailed");
                     }
                 });
             }
@@ -148,7 +148,7 @@ private:
     MqttWrapper::Client m_mqttClient;
     Logger m_logger;
     Logger* m_pLogger = nullptr;
-}
+};
 
 int main(int argc, char *argv[])
 {
