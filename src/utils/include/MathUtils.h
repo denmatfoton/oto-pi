@@ -199,7 +199,7 @@ private:
         {
             return 0;
         }
-        return static_cast<multiplicationT>(rate) * rate * knownOvershoot / (knownRate * knownRate);
+        return static_cast<int>(static_cast<multiplicationT>(rate) * rate * knownOvershoot / (static_cast<multiplicationT>(knownRate) * knownRate));
     }
 
     void UpdateOvershoot(int idx, int overshoot)
